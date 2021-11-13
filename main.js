@@ -52,34 +52,161 @@ var ApiService = /** @class */ (function () {
     function ApiService(http) {
         this.http = http;
     }
-    ApiService.prototype.testApi = function () {
-        return this.getApiByUrl("https://ptx.transportdata.tw/MOTC/v2/Tourism/ScenicSpot?$top=30&$format=JSON");
-    };
     ApiService.prototype.getSpotlight = function () {
         var _this = this;
         var filterName = [
-            "C1_379000000A_000217",
-            "C1_315081300H_000114",
-            "C1_315081300H_000088",
-            "C1_379000000A_000019",
-            "C1_376480000A_000304",
-            "C1_379000000A_000023",
-            "C1_397000000A_000637",
-            "C1_315081600H_000309",
+            'C1_379000000A_000217',
+            'C1_315081300H_000114',
+            'C1_315081300H_000088',
+            'C1_379000000A_000019',
+            'C1_376480000A_000304',
+            'C1_379000000A_000023',
+            'C1_397000000A_000637',
+            'C1_315081600H_000309',
         ];
-        var filterParam = filterName.map(function (d) { return "ID eq '" + d + "'"; }).join("or ");
+        var filterParam = filterName.map(function (d) { return "ID eq '" + d + "'"; }).join('or ');
         return this.getApiByUrl("https://ptx.transportdata.tw/MOTC/v2/Tourism/ScenicSpot?$filter=" + filterParam + "&$format=JSON").pipe(Object(rxjs_operators__WEBPACK_IMPORTED_MODULE_3__["map"])(function (res) { return _this.apiDtoToSpotSimple(res); }));
     };
     ApiService.prototype.getRecommendFilterDto = function () {
         var _this = this;
-        var selectParam = "$select=Class1,Picture";
+        var selectParam = "$select=Class1,Picture,Name";
         var randomStart = Math.round(Math.random() * 1000);
-        return this.getApiByUrl("https://ptx.transportdata.tw/MOTC/v2/Tourism/ScenicSpot?" + selectParam + "&$filter=Picture/PictureUrl1 ne null and Class1 ne null&$format=JSON&$top=6&$skip=" + randomStart).pipe(Object(rxjs_operators__WEBPACK_IMPORTED_MODULE_3__["map"])(function (res) { return (res.map(function (d) {
-            return {
-                imgUrl: d.Picture ? d.Picture.PictureUrl1 : "",
-                filterParam: _this.apiClassToGroupType([d.Class1])[0],
-            };
-        })); }));
+        return this.getApiByUrl("https://ptx.transportdata.tw/MOTC/v2/Tourism/ScenicSpot?" + selectParam + "&$filter=Picture/PictureUrl1 ne null and Class1 ne null&$format=JSON&$top=6&$skip=" + randomStart).pipe(Object(rxjs_operators__WEBPACK_IMPORTED_MODULE_3__["map"])(function (res) {
+            return res.map(function (d) {
+                return {
+                    imgUrl: d.Picture ? d.Picture.PictureUrl1 : '',
+                    filterParam: _this.apiClassToGroupType([d.Class1])[0],
+                    title: d.Name
+                };
+            });
+        }));
+    };
+    ApiService.prototype.getAllDataByFilter = function (filterDto, page) {
+        if (this.filterDtoIsComplex(filterDto)) {
+            return this.getFilterDataByClass(filterDto, page);
+        }
+        else {
+            return this.getRealApiByFilter(filterDto, page);
+        }
+    };
+    ApiService.prototype.filterDtoIsComplex = function (filterDto) {
+        return Boolean(filterDto.group ? filterDto.openTime || filterDto.ticket : false);
+    };
+    ApiService.prototype.getRealApiByFilter = function (filterDto, page) {
+        var _this = this;
+        var cityParam = filterDto.city ? "/" + filterDto.city : '';
+        var filterParam = this.getParamUrlByFilter(filterDto);
+        var filter = filterParam ? "&$filter=" + filterParam : '';
+        var skip = (page - 1) * 12;
+        var baseUrl = "https://ptx.transportdata.tw/MOTC/v2/Tourism/ScenicSpot" + cityParam + "?" + filter + "&$format=JSON";
+        return this.getApiByUrl("https://ptx.transportdata.tw/MOTC/v2/Tourism/ScenicSpot" + cityParam + "?" + filter + "&$format=JSON&$top=12&$skip=" + skip).pipe(Object(rxjs_operators__WEBPACK_IMPORTED_MODULE_3__["map"])(function (res) { return _this.apiDtoToSpotSimple(res); }));
+    };
+    ApiService.prototype.getFilterDataNumber = function (filterDto) {
+        if (this.filterDtoIsComplex(filterDto)) {
+            return this.getFilterDataNumByClass(filterDto);
+        }
+        else {
+            return this.getRealApiDataNumber(filterDto);
+        }
+    };
+    ApiService.prototype.getRealApiDataNumber = function (filterDto) {
+        var selectParam = "$select=ID";
+        var cityParam = filterDto.city ? "/" + filterDto.city : '';
+        var filterParam = this.getParamUrlByFilter(filterDto);
+        var filter = filterParam ? "&$filter=" + filterParam : '';
+        return this.getApiByUrl("https://ptx.transportdata.tw/MOTC/v2/Tourism/ScenicSpot" + cityParam + "?" + selectParam + filter + "&$format=JSON").pipe(Object(rxjs_operators__WEBPACK_IMPORTED_MODULE_3__["map"])(function (res) { return res.length; }));
+    };
+    ApiService.prototype.getFilterDataByClass = function (filterDto, page) {
+        var group = filterDto.group;
+        return this.getAllAndNoClass(filterDto, group).pipe(Object(rxjs_operators__WEBPACK_IMPORTED_MODULE_3__["map"])(function (res) {
+            return res.filter(function (d, i) {
+                var pageStart = (page - 1) * 12;
+                var pageEnd = (page) * 12;
+                return i >= pageStart && i < pageEnd;
+            });
+        }));
+    };
+    ApiService.prototype.getFilterDataNumByClass = function (filterDto) {
+        var group = filterDto.group;
+        return this.getAllAndNoClass(filterDto, group).pipe(Object(rxjs_operators__WEBPACK_IMPORTED_MODULE_3__["map"])(function (res) {
+            return res.length;
+        }));
+    };
+    ApiService.prototype.getAllAndNoClass = function (filterDto, group) {
+        var _this = this;
+        var cityParam = filterDto.city ? "/" + filterDto.city : '';
+        var newFilterDto = tslib__WEBPACK_IMPORTED_MODULE_0__["__assign"]({}, filterDto, { group: '' });
+        var filterParam = this.getParamUrlByFilter(newFilterDto);
+        var filter = filterParam ? "&$filter=" + filterParam : '';
+        return this.getApiByUrl("https://ptx.transportdata.tw/MOTC/v2/Tourism/ScenicSpot" + cityParam + "?" + filter + "&$format=JSON").pipe(Object(rxjs_operators__WEBPACK_IMPORTED_MODULE_3__["map"])(function (res) { return _this.apiDtoToSpotSimple(res).filter(function (d) { return d.typeList.includes(group); }); }));
+    };
+    ApiService.prototype.getParamUrlByFilter = function (filterDto) {
+        var filterText = filterDto.searchText
+            ? "contains(Name,'" + filterDto.searchText + "')"
+            : '';
+        var group = this.getGroupList(filterDto.group);
+        var ticketInfo = this.getTicketInfo(filterDto.ticket);
+        var openInfo = this.getOpenInfo(filterDto.openTime);
+        var allCondition = [filterText, group, ticketInfo, openInfo]
+            .filter(function (d) { return d; })
+            .join(' and ');
+        console.log(allCondition);
+        return "" + allCondition;
+    };
+    ApiService.prototype.getTicketInfo = function (ticket) {
+        var keyWordList = [];
+        if (ticket === '免費') {
+            keyWordList = ['免費'];
+        }
+        if (ticket === '收費') {
+            keyWordList = ['元'];
+        }
+        return keyWordList.length
+            ? keyWordList.map(function (d) { return "contains(TicketInfo,'" + d + "')"; }).join(' or ')
+            : '';
+    };
+    ApiService.prototype.getOpenInfo = function (ticket) {
+        var keyWordList = [];
+        if (ticket === '全年') {
+            keyWordList = ['全年'];
+        }
+        if (ticket === '預約') {
+            keyWordList = ['預約'];
+        }
+        return keyWordList.length
+            ? keyWordList.map(function (d) { return "contains(OpenTime,'" + d + "')"; }).join(' or ')
+            : '';
+    };
+    ApiService.prototype.getGroupList = function (group) {
+        var groupType = typeList.find(function (d) { return d.groupType === group; });
+        if (groupType) {
+            return groupType.list
+                .map(function (d) {
+                return "contains(Class1,'" + d + "') or contains(Class2,'" + d + "') or contains(Class3,'" + d + "')";
+            })
+                .join('or ');
+        }
+        else {
+            return '';
+        }
+    };
+    ApiService.prototype.getNearbyRestaurant = function (lat, lon) {
+        var _this = this;
+        return this.getApiByUrl("https://ptx.transportdata.tw/MOTC/v2/Tourism/Restaurant?$spatialFilter=nearby(" + lat + "," + lon + ",1000)&$format=JSON").pipe(Object(rxjs_operators__WEBPACK_IMPORTED_MODULE_3__["map"])(function (res) {
+            return res.map(function (d) {
+                var restLon = d.Position.PositionLon;
+                var resLat = d.Position.PositionLat;
+                return {
+                    id: d.ID,
+                    name: d.Name,
+                    position: Math.round(_this.getDistance(lat, lon, resLat, restLon)),
+                    imgUrl: d.Picture ? d.Picture.PictureUrl1 : '',
+                    address: d.Address,
+                    openTime: d.OpenTime,
+                    description: d.Description,
+                };
+            });
+        }));
     };
     ApiService.prototype.getSpotDetailById = function (id) {
         var _this = this;
@@ -95,8 +222,8 @@ var ApiService = /** @class */ (function () {
                 id: d.ID,
                 name: d.Name,
                 img: {
-                    url: d.Picture ? d.Picture.PictureUrl1 : "",
-                    title: d.Picture ? d.Picture.PictureDescription1 : "",
+                    url: d.Picture ? d.Picture.PictureUrl1 : '',
+                    title: d.Picture ? d.Picture.PictureDescription1 : '',
                 },
                 openTime: d.OpenTime,
                 typeList: _this.apiClassToGroupType([
@@ -110,16 +237,16 @@ var ApiService = /** @class */ (function () {
     ApiService.prototype.apiDtoToSpotDetail = function (resData) {
         var imgUrl = [
             {
-                url: resData.Picture ? resData.Picture.PictureUrl1 : "",
-                title: resData.Picture ? resData.Picture.PictureDescription1 : "",
+                url: resData.Picture ? resData.Picture.PictureUrl1 : '',
+                title: resData.Picture ? resData.Picture.PictureDescription1 : '',
             },
             {
-                url: resData.Picture ? resData.Picture.PictureUrl2 : "",
-                title: resData.Picture ? resData.Picture.PictureDescription2 : "",
+                url: resData.Picture ? resData.Picture.PictureUrl2 : '',
+                title: resData.Picture ? resData.Picture.PictureDescription2 : '',
             },
             {
-                url: resData.Picture ? resData.Picture.PictureUrl3 : "",
-                title: resData.Picture ? resData.Picture.PictureDescription3 : "",
+                url: resData.Picture ? resData.Picture.PictureUrl3 : '',
+                title: resData.Picture ? resData.Picture.PictureDescription3 : '',
             },
         ];
         return {
@@ -149,56 +276,19 @@ var ApiService = /** @class */ (function () {
     };
     ApiService.prototype.getHeaders = function () {
         var gmtTime = new Date().toUTCString();
-        var hash = hmacsha1__WEBPACK_IMPORTED_MODULE_4__("XnkO4Q6oiRxv8Q7LfXsO-E_ECug", "x-date: " + gmtTime);
+        var hash = hmacsha1__WEBPACK_IMPORTED_MODULE_4__('XnkO4Q6oiRxv8Q7LfXsO-E_ECug', "x-date: " + gmtTime);
         var headers = new _angular_common_http__WEBPACK_IMPORTED_MODULE_1__["HttpHeaders"]({
-            "Content-Type": "application/json",
+            'Content-Type': 'application/json',
             Authorization: "hmac username=\"924170cd868348de90cf7b30f8cda570\", algorithm=\"hmac-sha1\", headers=\"x-date\", signature=\"" + hash + "\"",
-            "x-date": gmtTime,
+            'x-date': gmtTime,
         });
         return headers;
     };
     ApiService.prototype.apiClassToGroupType = function (classList) {
-        var typeList = [
-            {
-                groupType: _class_SpotGroupType__WEBPACK_IMPORTED_MODULE_5__["SpotGroupType"].NATION,
-                list: [
-                    _class_SpotClass__WEBPACK_IMPORTED_MODULE_6__["SpotClass"].NATURAL,
-                    _class_SpotClass__WEBPACK_IMPORTED_MODULE_6__["SpotClass"].METROPOLITAN_PARK,
-                    _class_SpotClass__WEBPACK_IMPORTED_MODULE_6__["SpotClass"].NATION_SCENE,
-                    _class_SpotClass__WEBPACK_IMPORTED_MODULE_6__["SpotClass"].FOREST,
-                    _class_SpotClass__WEBPACK_IMPORTED_MODULE_6__["SpotClass"].NATION_PARK,
-                ],
-            },
-            {
-                groupType: _class_SpotGroupType__WEBPACK_IMPORTED_MODULE_5__["SpotGroupType"].FARM,
-                list: [
-                    _class_SpotClass__WEBPACK_IMPORTED_MODULE_6__["SpotClass"].ECOLOGICAL,
-                    _class_SpotClass__WEBPACK_IMPORTED_MODULE_6__["SpotClass"].RECREATION,
-                    _class_SpotClass__WEBPACK_IMPORTED_MODULE_6__["SpotClass"].TOURIST_FACTORY,
-                    _class_SpotClass__WEBPACK_IMPORTED_MODULE_6__["SpotClass"].FOREST_FARM,
-                    _class_SpotClass__WEBPACK_IMPORTED_MODULE_6__["SpotClass"].AGRICULTURAL_RECREATION,
-                ],
-            },
-            {
-                groupType: _class_SpotGroupType__WEBPACK_IMPORTED_MODULE_5__["SpotGroupType"].CULTURE,
-                list: [
-                    _class_SpotClass__WEBPACK_IMPORTED_MODULE_6__["SpotClass"].CULTURE,
-                    _class_SpotClass__WEBPACK_IMPORTED_MODULE_6__["SpotClass"].TEMPLE,
-                    _class_SpotClass__WEBPACK_IMPORTED_MODULE_6__["SpotClass"].SPA,
-                    _class_SpotClass__WEBPACK_IMPORTED_MODULE_6__["SpotClass"].EAT,
-                    _class_SpotClass__WEBPACK_IMPORTED_MODULE_6__["SpotClass"].ART,
-                ],
-            },
-            {
-                groupType: _class_SpotGroupType__WEBPACK_IMPORTED_MODULE_5__["SpotGroupType"].OTHER,
-                list: [_class_SpotClass__WEBPACK_IMPORTED_MODULE_6__["SpotClass"].SPORT, _class_SpotClass__WEBPACK_IMPORTED_MODULE_6__["SpotClass"].OTHER],
-            },
-        ];
         var newObject = {};
         classList.forEach(function (d) {
             if (d) {
                 var inGroup = typeList.find(function (typeDto) { return typeDto.list.includes(d); });
-                console.log(inGroup, d);
                 if (inGroup) {
                     newObject[inGroup.groupType] = 1;
                 }
@@ -209,40 +299,72 @@ var ApiService = /** @class */ (function () {
         });
         return Object.keys(newObject);
     };
+    ApiService.prototype.getDistance = function (lat1, lon1, lat2, lon2) {
+        if (lat1 == lat2 && lon1 == lon2) {
+            return 0;
+        }
+        else {
+            var radlat1 = (Math.PI * lat1) / 180;
+            var radlat2 = (Math.PI * lat2) / 180;
+            var theta = lon1 - lon2;
+            var radtheta = (Math.PI * theta) / 180;
+            var dist = Math.sin(radlat1) * Math.sin(radlat2) +
+                Math.cos(radlat1) * Math.cos(radlat2) * Math.cos(radtheta);
+            if (dist > 1) {
+                dist = 1;
+            }
+            dist = Math.acos(dist);
+            dist = (dist * 180) / Math.PI;
+            dist = dist * 60 * 1.1515;
+            dist = dist * 1.609344 * 1000;
+            return dist;
+        }
+    };
     ApiService = tslib__WEBPACK_IMPORTED_MODULE_0__["__decorate"]([
         Object(_angular_core__WEBPACK_IMPORTED_MODULE_2__["Injectable"])({
-            providedIn: "root",
+            providedIn: 'root',
         }),
         tslib__WEBPACK_IMPORTED_MODULE_0__["__metadata"]("design:paramtypes", [_angular_common_http__WEBPACK_IMPORTED_MODULE_1__["HttpClient"]])
     ], ApiService);
     return ApiService;
 }());
 
-var fakeDetail = {
-    id: "C1_315080500H_000068",
-    name: "紫坪",
-    imgUrlList: [
-        {
-            url: "https://www.eastcoast-nsa.gov.tw/image/419/640x480",
-            title: "從步道上遙望綠島露營區海邊",
-        },
-    ],
-    parkingInfo: "",
-    city: "",
-    address: "臺東縣951綠島鄉溫泉路256號",
-    zipCode: "951",
-    websiteUrl: "",
-    descriptionDetail: "紫坪位在綠島最南方，緊鄰「綠島露營區」。從露營區旁的步道，可通往海岸邊的潟湖「紫坪」。「紫坪」是一處由珊瑚礁構成的潮池，也是綠島著名的潟湖所在地，有全綠島最完整的潟湖地形以及珊瑚礁植群，更有茂盛的植物水芫花和珍貴的陸寄居蟹。外海儘管浪濤洶湧，內湖依然波平如鏡，宛若沉睡的湖水，清淺的躺在外珊瑚礁岩與內珊瑚貝砂灘間；水芫花灌叢身影倒映於平靜無波的水面上，潔白柔細的白砂鋪陳水底。熱帶海岸旖旎風情，盡在不言中。",
-    openTime: "全天候開放",
-    phone: "886-8-9672026",
-    typeList: [],
-    updateTime: "2021-11-06T02:10:14+08:00",
-    ticketInfo: "免費，露營活動另計。",
-    position: {
-        lat: 22.633939743041992,
-        lon: 121.49990844726562,
+var typeList = [
+    {
+        groupType: _class_SpotGroupType__WEBPACK_IMPORTED_MODULE_5__["SpotGroupType"].NATURE,
+        list: [
+            _class_SpotClass__WEBPACK_IMPORTED_MODULE_6__["SpotClass"].NATURAL,
+            _class_SpotClass__WEBPACK_IMPORTED_MODULE_6__["SpotClass"].METROPOLITAN_PARK,
+            _class_SpotClass__WEBPACK_IMPORTED_MODULE_6__["SpotClass"].NATION_SCENE,
+            _class_SpotClass__WEBPACK_IMPORTED_MODULE_6__["SpotClass"].FOREST,
+            _class_SpotClass__WEBPACK_IMPORTED_MODULE_6__["SpotClass"].NATION_PARK,
+        ],
     },
-};
+    {
+        groupType: _class_SpotGroupType__WEBPACK_IMPORTED_MODULE_5__["SpotGroupType"].FARM,
+        list: [
+            _class_SpotClass__WEBPACK_IMPORTED_MODULE_6__["SpotClass"].ECOLOGICAL,
+            _class_SpotClass__WEBPACK_IMPORTED_MODULE_6__["SpotClass"].RECREATION,
+            _class_SpotClass__WEBPACK_IMPORTED_MODULE_6__["SpotClass"].TOURIST_FACTORY,
+            _class_SpotClass__WEBPACK_IMPORTED_MODULE_6__["SpotClass"].FOREST_FARM,
+            _class_SpotClass__WEBPACK_IMPORTED_MODULE_6__["SpotClass"].AGRICULTURAL_RECREATION,
+        ],
+    },
+    {
+        groupType: _class_SpotGroupType__WEBPACK_IMPORTED_MODULE_5__["SpotGroupType"].CULTURE,
+        list: [
+            _class_SpotClass__WEBPACK_IMPORTED_MODULE_6__["SpotClass"].CULTURE,
+            _class_SpotClass__WEBPACK_IMPORTED_MODULE_6__["SpotClass"].TEMPLE,
+            _class_SpotClass__WEBPACK_IMPORTED_MODULE_6__["SpotClass"].SPA,
+            _class_SpotClass__WEBPACK_IMPORTED_MODULE_6__["SpotClass"].EAT,
+            _class_SpotClass__WEBPACK_IMPORTED_MODULE_6__["SpotClass"].ART,
+        ],
+    },
+    {
+        groupType: _class_SpotGroupType__WEBPACK_IMPORTED_MODULE_5__["SpotGroupType"].OTHER,
+        list: [_class_SpotClass__WEBPACK_IMPORTED_MODULE_6__["SpotClass"].SPORT, _class_SpotClass__WEBPACK_IMPORTED_MODULE_6__["SpotClass"].OTHER],
+    },
+];
 
 
 /***/ }),
@@ -288,7 +410,7 @@ var AppRoutingModule = /** @class */ (function () {
     }
     AppRoutingModule = tslib__WEBPACK_IMPORTED_MODULE_0__["__decorate"]([
         Object(_angular_core__WEBPACK_IMPORTED_MODULE_1__["NgModule"])({
-            imports: [_angular_router__WEBPACK_IMPORTED_MODULE_2__["RouterModule"].forRoot(routes)],
+            imports: [_angular_router__WEBPACK_IMPORTED_MODULE_2__["RouterModule"].forRoot(routes, { scrollPositionRestoration: 'enabled' })],
             exports: [_angular_router__WEBPACK_IMPORTED_MODULE_2__["RouterModule"]]
         })
     ], AppRoutingModule);
@@ -371,6 +493,12 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _angular_material_menu__WEBPACK_IMPORTED_MODULE_17__ = __webpack_require__(/*! @angular/material/menu */ "./node_modules/@angular/material/esm5/menu.es5.js");
 /* harmony import */ var _component_select_component__WEBPACK_IMPORTED_MODULE_18__ = __webpack_require__(/*! ./component/select.component */ "./src/app/component/select.component.ts");
 /* harmony import */ var _angular_forms__WEBPACK_IMPORTED_MODULE_19__ = __webpack_require__(/*! @angular/forms */ "./node_modules/@angular/forms/fesm5/forms.js");
+/* harmony import */ var _agm_core__WEBPACK_IMPORTED_MODULE_20__ = __webpack_require__(/*! @agm/core */ "./node_modules/@agm/core/index.js");
+/* harmony import */ var _component_groupSelect_component__WEBPACK_IMPORTED_MODULE_21__ = __webpack_require__(/*! ./component/groupSelect.component */ "./src/app/component/groupSelect.component.ts");
+/* harmony import */ var _component_imgLoader_component__WEBPACK_IMPORTED_MODULE_22__ = __webpack_require__(/*! ./component/imgLoader.component */ "./src/app/component/imgLoader.component.ts");
+
+
+
 
 
 
@@ -406,7 +534,9 @@ var AppModule = /** @class */ (function () {
                 _page_detail_component__WEBPACK_IMPORTED_MODULE_11__["DetailComponent"],
                 _component_spotCard_component__WEBPACK_IMPORTED_MODULE_14__["SpotCardComponent"],
                 _component_restaurant_component__WEBPACK_IMPORTED_MODULE_16__["RestaurantComponent"],
-                _component_select_component__WEBPACK_IMPORTED_MODULE_18__["SelectComponent"]
+                _component_select_component__WEBPACK_IMPORTED_MODULE_18__["SelectComponent"],
+                _component_groupSelect_component__WEBPACK_IMPORTED_MODULE_21__["GroupSelectComponent"],
+                _component_imgLoader_component__WEBPACK_IMPORTED_MODULE_22__["ImgLoaderComponent"]
             ],
             imports: [
                 _angular_platform_browser__WEBPACK_IMPORTED_MODULE_1__["BrowserModule"],
@@ -416,7 +546,10 @@ var AppModule = /** @class */ (function () {
                 _angular_common_http__WEBPACK_IMPORTED_MODULE_13__["HttpClientModule"],
                 _angular_material_dialog__WEBPACK_IMPORTED_MODULE_15__["MatDialogModule"],
                 _angular_material_menu__WEBPACK_IMPORTED_MODULE_17__["MatMenuModule"],
-                _angular_forms__WEBPACK_IMPORTED_MODULE_19__["FormsModule"]
+                _angular_forms__WEBPACK_IMPORTED_MODULE_19__["FormsModule"],
+                _agm_core__WEBPACK_IMPORTED_MODULE_20__["AgmCoreModule"].forRoot({
+                    apiKey: 'AIzaSyACkN2jkmqL2LJE4h4dh5fQiXv0wC0vFjo'
+                })
             ],
             entryComponents: [_component_restaurant_component__WEBPACK_IMPORTED_MODULE_16__["RestaurantComponent"]],
             providers: [],
@@ -477,7 +610,7 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "SpotGroupType", function() { return SpotGroupType; });
 var SpotGroupType;
 (function (SpotGroupType) {
-    SpotGroupType["NATION"] = "\u81EA\u7136\u98A8\u666F";
+    SpotGroupType["NATURE"] = "\u81EA\u7136\u98A8\u666F";
     SpotGroupType["FARM"] = "\u89C0\u5149\u8FB2\u5834";
     SpotGroupType["CULTURE"] = "\u4EBA\u6587\u6587\u5316";
     SpotGroupType["OTHER"] = "\u5176\u4ED6";
@@ -493,7 +626,7 @@ var SpotGroupType;
 /*! no static exports found */
 /***/ (function(module, exports) {
 
-module.exports = "<div class=\"cus-filter-container\">\n    <div class=\"pb-xs\">\n        <div class=\"cus-input-container\">\n            <input class=\"cus-input cus-input--search\" [(ngModel)]=\"filterObj.searchText\" placeholder=\"輸入關鍵字\">\n            <i class=\"icon-search\"></i>\n            <i class=\"icon-filter\" (click)=\"showList=!showList\"></i>\n            <div *ngIf=\"showList\" class=\"cus-filter-dropDown\"> \n                haha\n            </div>\n        </div>\n    </div>\n    <div class=\"pt-xs d-fl mb-sm cus-mobile-hide\">\n        <com-select class=\"cus-input-container mr-xs fl-11a\" (onSelect)=\"filterObj.city=$event\" [value]=\"filterObj.city\" [hasFilter]=\"true\" [valueList]=\"cityList\"></com-select>\n        <com-select class=\"cus-input-container ml-xs fl-11a\" (onSelect)=\"filterObj.group=$event\" [value]=\"filterObj.group\" [valueList]=\"groupList\"></com-select>\n    </div>\n    <div class=\"p-sm ta-c cus-mobile-hide\">\n        <button class=\"cus-btn cus-btn--primary\" (click)=\"search()\">出發去!</button>\n\n    </div>\n\n</div>"
+module.exports = "<div class=\"cus-filter-container\">\r\n    <div class=\"pb-xs\">\r\n        <div class=\"cus-input-container\">\r\n            <input class=\"cus-input cus-input--search\" id=\"search\" [(ngModel)]=\"filterObj.searchText\"\r\n                [placeholder]=\"getFilterTag().length?'':'請輸入關鍵字'\">\r\n            <div class=\"cus-filter-tagContainer\">\r\n                <div class=\"cus-filter-tag mr-xs\" *ngFor=\"let tag of getFilterTag()\" (click)=\"deleteTag(tag)\" >\r\n                    <span class=\"cus-filter-tag-text mr-xs\" [title]=\"tag.name\"> {{tag.name}} </span>\r\n                    <i class=\"icon-crossClose\" ></i>\r\n                </div>\r\n            </div>\r\n            <label class=\"icon-search\" for=\"search\"></label>\r\n            <i class=\"icon-filter\" (click)=\"showList=!showList;$event.stopPropagation();\"></i>\r\n            <div class=\"cus-filter-dropDown\" #filterDropDown *ngIf=\"showList\">\r\n                <com-group-select [filterObj]=\"filterObj\"\r\n                    (doFilter)=\"this.filterObj=$event;search();showList=!showList;\"></com-group-select>\r\n            </div>\r\n        </div>\r\n    </div>\r\n    <div class=\"pt-xs d-fl mb-sm cus-mobile-hide\">\r\n        <com-select class=\"cus-input-container mr-xs fl-11a\" (onSelect)=\"filterObj.city=$event\" [value]=\"filterObj.city\"\r\n            [hasFilter]=\"true\" [valueList]=\"cityList\"></com-select>\r\n        <com-select class=\"cus-input-container ml-xs fl-11a\" (onSelect)=\"filterObj.group=$event\"\r\n            [value]=\"filterObj.group\" [valueList]=\"groupList\"></com-select>\r\n    </div>\r\n    <div class=\"p-sm ta-c\">\r\n        <button class=\"cus-btn cus-btn--primary\" (click)=\"search()\">出發去！</button>\r\n\r\n    </div>\r\n\r\n</div>"
 
 /***/ }),
 
@@ -509,75 +642,80 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "FilterComponent", function() { return FilterComponent; });
 /* harmony import */ var tslib__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! tslib */ "./node_modules/tslib/tslib.es6.js");
 /* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! @angular/core */ "./node_modules/@angular/core/fesm5/core.js");
-/* harmony import */ var _class_SpotGroupType__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ../class/SpotGroupType */ "./src/app/class/SpotGroupType.ts");
+/* harmony import */ var _groupSelect_component__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ./groupSelect.component */ "./src/app/component/groupSelect.component.ts");
+/* harmony import */ var jquery__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! jquery */ "./node_modules/jquery/dist/jquery.js");
+/* harmony import */ var jquery__WEBPACK_IMPORTED_MODULE_3___default = /*#__PURE__*/__webpack_require__.n(jquery__WEBPACK_IMPORTED_MODULE_3__);
+
 
 
 
 var FilterComponent = /** @class */ (function () {
-    function FilterComponent() {
+    function FilterComponent(elementRef) {
+        this.elementRef = elementRef;
         this.doFilter = new _angular_core__WEBPACK_IMPORTED_MODULE_1__["EventEmitter"]();
         this.showList = false;
         this.filterObj = {
-            city: null,
-            group: null,
-            searchText: ''
+            city: '',
+            group: '',
+            searchText: '',
+            openTime: '',
+            ticket: ''
         };
-        this.cityList = [
-            { name: "臺北市", key: "Taipei" },
-            { name: "新北市", key: "NewTaipei" },
-            { name: "桃園市", key: "Taoyuan" },
-            { name: "臺中市", key: "Taichung" },
-            { name: "臺南市", key: "Tainan" },
-            { name: "高雄市", key: "Kaohsiung" },
-            { name: "基隆市", key: "Keelung" },
-            { name: "新竹市", key: "Hsinchu" },
-            { name: "新竹縣", key: "HsinchuCounty" },
-            { name: "苗栗縣", key: "MiaoliCounty" },
-            { name: "彰化縣", key: "ChanghuaCounty" },
-            { name: "南投縣", key: "NantouCounty" },
-            { name: "雲林縣", key: "YunlinCounty" },
-            { name: "嘉義縣", key: "ChiayiCounty" },
-            { name: "嘉義市", key: "Chiayi" },
-            { name: "屏東縣", key: "PingtungCounty" },
-            { name: "宜蘭縣", key: "YilanCounty" },
-            { name: "花蓮縣", key: "HualienCounty" },
-            { name: "臺東縣", key: "TaitungCounty" },
-            { name: "金門縣", key: "KinmenCounty" },
-            { name: "澎湖縣", key: "PenghuCounty" },
-            { name: "連江縣", key: "LienchiangCounty" },
-        ];
-        this.groupList = [
-            {
-                name: _class_SpotGroupType__WEBPACK_IMPORTED_MODULE_2__["SpotGroupType"].CULTURE,
-                key: _class_SpotGroupType__WEBPACK_IMPORTED_MODULE_2__["SpotGroupType"].CULTURE
-            },
-            {
-                name: _class_SpotGroupType__WEBPACK_IMPORTED_MODULE_2__["SpotGroupType"].FARM,
-                key: _class_SpotGroupType__WEBPACK_IMPORTED_MODULE_2__["SpotGroupType"].FARM
-            },
-            {
-                name: _class_SpotGroupType__WEBPACK_IMPORTED_MODULE_2__["SpotGroupType"].NATION,
-                key: _class_SpotGroupType__WEBPACK_IMPORTED_MODULE_2__["SpotGroupType"].NATION
-            },
-            {
-                name: _class_SpotGroupType__WEBPACK_IMPORTED_MODULE_2__["SpotGroupType"].OTHER,
-                key: _class_SpotGroupType__WEBPACK_IMPORTED_MODULE_2__["SpotGroupType"].OTHER
-            }
-        ];
+        this.cityList = _groupSelect_component__WEBPACK_IMPORTED_MODULE_2__["cityList"];
+        this.groupList = _groupSelect_component__WEBPACK_IMPORTED_MODULE_2__["groupList"];
     }
+    FilterComponent.prototype.ngAfterViewInit = function () {
+        var _this = this;
+        jquery__WEBPACK_IMPORTED_MODULE_3__(document).on('click', 'body', function (event) {
+            if (_this.filterDropDown &&
+                !jquery__WEBPACK_IMPORTED_MODULE_3__["contains"](_this.filterDropDown.nativeElement, event.target) &&
+                _this.filterDropDown.nativeElement !== event.target) {
+                _this.showList = false;
+            }
+        });
+    };
+    FilterComponent.prototype.ngOnDestroy = function () { };
+    FilterComponent.prototype.getFilterTag = function () {
+        var _this = this;
+        return Object.keys(this.filterObj)
+            .map(function (key) {
+            var name = _this.filterObj[key];
+            if (key === 'city') {
+                var city = _groupSelect_component__WEBPACK_IMPORTED_MODULE_2__["cityList"].find(function (d) { return d.key === name; });
+                name = city ? city.name : name;
+            }
+            return {
+                key: key,
+                name: name,
+            };
+        })
+            .filter(function (d) { return d.name; });
+    };
     FilterComponent.prototype.search = function () {
-        this.doFilter.emit();
+        this.doFilter.emit(this.filterObj);
+    };
+    FilterComponent.prototype.deleteTag = function (tag) {
+        this.filterObj[tag.key] = '';
     };
     tslib__WEBPACK_IMPORTED_MODULE_0__["__decorate"]([
         Object(_angular_core__WEBPACK_IMPORTED_MODULE_1__["Output"])(),
         tslib__WEBPACK_IMPORTED_MODULE_0__["__metadata"]("design:type", Object)
     ], FilterComponent.prototype, "doFilter", void 0);
+    tslib__WEBPACK_IMPORTED_MODULE_0__["__decorate"]([
+        Object(_angular_core__WEBPACK_IMPORTED_MODULE_1__["ViewChild"])('filterDropDown'),
+        tslib__WEBPACK_IMPORTED_MODULE_0__["__metadata"]("design:type", _angular_core__WEBPACK_IMPORTED_MODULE_1__["ElementRef"])
+    ], FilterComponent.prototype, "filterDropDown", void 0);
+    tslib__WEBPACK_IMPORTED_MODULE_0__["__decorate"]([
+        Object(_angular_core__WEBPACK_IMPORTED_MODULE_1__["Input"])(),
+        tslib__WEBPACK_IMPORTED_MODULE_0__["__metadata"]("design:type", Object)
+    ], FilterComponent.prototype, "filterObj", void 0);
     FilterComponent = tslib__WEBPACK_IMPORTED_MODULE_0__["__decorate"]([
         Object(_angular_core__WEBPACK_IMPORTED_MODULE_1__["Component"])({
-            selector: "com-filter",
+            selector: 'com-filter',
             template: __webpack_require__(/*! ./filter.component.html */ "./src/app/component/filter.component.html"),
             styles: [__webpack_require__(/*! ./filter.scss */ "./src/app/component/filter.scss")]
-        })
+        }),
+        tslib__WEBPACK_IMPORTED_MODULE_0__["__metadata"]("design:paramtypes", [_angular_core__WEBPACK_IMPORTED_MODULE_1__["ElementRef"]])
     ], FilterComponent);
     return FilterComponent;
 }());
@@ -593,7 +731,226 @@ var FilterComponent = /** @class */ (function () {
 /*! no static exports found */
 /***/ (function(module, exports) {
 
-module.exports = ".cus-filter-dropDown {\n  color: #333;\n  padding: 10px;\n  width: 100%;\n  font-size: 20px;\n  position: absolute;\n  background: #fff;\n  transform: translateY(14px);\n  max-height: 9em;\n  z-index: 1;\n  filter: drop-shadow(0px 10px 20px #00000029);\n  padding: 30px 24px;\n  padding-bottom: 12px;\n  border-radius: 10px;\n}\n.cus-filter-dropDown::before {\n  width: 0;\n  height: 0;\n  border-style: solid;\n  border-width: 0 8px 10px 8px;\n  border-color: transparent transparent #ffffff transparent;\n  content: \"\";\n  position: absolute;\n  top: 0px;\n  right: 18px;\n  transform: translateY(-10px);\n}\n/*# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbIi9Vc2Vycy9uYW1lL2plbm55L3BsYXlncm91bmQvZjJlMjAyMS9mMmUyMDIxLXRhaXdhblRyYXZlbGluZy9zcmMvYXBwL2NvbXBvbmVudC9maWx0ZXIuc2NzcyIsInNyYy9hcHAvY29tcG9uZW50L2ZpbHRlci5zY3NzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQUFBO0VBQ0UsV0FBQTtFQUNBLGFBQUE7RUFDQSxXQUFBO0VBQ0EsZUFBQTtFQUNBLGtCQUFBO0VBQ0EsZ0JBQUE7RUFDQSwyQkFBQTtFQUNBLGVBQUE7RUFDQSxVQUFBO0VBQ0EsNENBQUE7RUFDQSxrQkFBQTtFQUNBLG9CQUFBO0VBQ0EsbUJBQUE7QUNDRjtBREFFO0VBQ0UsUUFBQTtFQUNBLFNBQUE7RUFDQSxtQkFBQTtFQUNBLDRCQUFBO0VBQ0EseURBQUE7RUFDQSxXQUFBO0VBQ0Esa0JBQUE7RUFDQSxRQUFBO0VBQ0EsV0FBQTtFQUNBLDRCQUFBO0FDRUoiLCJmaWxlIjoic3JjL2FwcC9jb21wb25lbnQvZmlsdGVyLnNjc3MiLCJzb3VyY2VzQ29udGVudCI6WyIuY3VzLWZpbHRlci1kcm9wRG93biB7XG4gIGNvbG9yOiAjMzMzO1xuICBwYWRkaW5nOiAxMHB4O1xuICB3aWR0aDogMTAwJTtcbiAgZm9udC1zaXplOiAyMHB4O1xuICBwb3NpdGlvbjogYWJzb2x1dGU7XG4gIGJhY2tncm91bmQ6ICNmZmY7XG4gIHRyYW5zZm9ybTogdHJhbnNsYXRlWSgxNHB4KTtcbiAgbWF4LWhlaWdodDogOWVtO1xuICB6LWluZGV4OiAxO1xuICBmaWx0ZXI6IGRyb3Atc2hhZG93KDBweCAxMHB4IDIwcHggIzAwMDAwMDI5KTtcbiAgcGFkZGluZzogMzBweCAyNHB4O1xuICBwYWRkaW5nLWJvdHRvbTogMTJweDtcbiAgYm9yZGVyLXJhZGl1czogMTBweDtcbiAgJjo6YmVmb3JlIHtcbiAgICB3aWR0aDogMDtcbiAgICBoZWlnaHQ6IDA7XG4gICAgYm9yZGVyLXN0eWxlOiBzb2xpZDtcbiAgICBib3JkZXItd2lkdGg6IDAgOHB4IDEwcHggOHB4O1xuICAgIGJvcmRlci1jb2xvcjogdHJhbnNwYXJlbnQgdHJhbnNwYXJlbnQgI2ZmZmZmZiB0cmFuc3BhcmVudDtcbiAgICBjb250ZW50OiBcIlwiO1xuICAgIHBvc2l0aW9uOiBhYnNvbHV0ZTtcbiAgICB0b3A6IDBweDtcbiAgICByaWdodDogMThweDtcbiAgICB0cmFuc2Zvcm06IHRyYW5zbGF0ZVkoLTEwcHgpO1xuICB9XG59XG4iLCIuY3VzLWZpbHRlci1kcm9wRG93biB7XG4gIGNvbG9yOiAjMzMzO1xuICBwYWRkaW5nOiAxMHB4O1xuICB3aWR0aDogMTAwJTtcbiAgZm9udC1zaXplOiAyMHB4O1xuICBwb3NpdGlvbjogYWJzb2x1dGU7XG4gIGJhY2tncm91bmQ6ICNmZmY7XG4gIHRyYW5zZm9ybTogdHJhbnNsYXRlWSgxNHB4KTtcbiAgbWF4LWhlaWdodDogOWVtO1xuICB6LWluZGV4OiAxO1xuICBmaWx0ZXI6IGRyb3Atc2hhZG93KDBweCAxMHB4IDIwcHggIzAwMDAwMDI5KTtcbiAgcGFkZGluZzogMzBweCAyNHB4O1xuICBwYWRkaW5nLWJvdHRvbTogMTJweDtcbiAgYm9yZGVyLXJhZGl1czogMTBweDtcbn1cbi5jdXMtZmlsdGVyLWRyb3BEb3duOjpiZWZvcmUge1xuICB3aWR0aDogMDtcbiAgaGVpZ2h0OiAwO1xuICBib3JkZXItc3R5bGU6IHNvbGlkO1xuICBib3JkZXItd2lkdGg6IDAgOHB4IDEwcHggOHB4O1xuICBib3JkZXItY29sb3I6IHRyYW5zcGFyZW50IHRyYW5zcGFyZW50ICNmZmZmZmYgdHJhbnNwYXJlbnQ7XG4gIGNvbnRlbnQ6IFwiXCI7XG4gIHBvc2l0aW9uOiBhYnNvbHV0ZTtcbiAgdG9wOiAwcHg7XG4gIHJpZ2h0OiAxOHB4O1xuICB0cmFuc2Zvcm06IHRyYW5zbGF0ZVkoLTEwcHgpO1xufSJdfQ== */"
+module.exports = ".cus-filter-dropDown {\n  color: #333;\n  padding: 10px;\n  width: 100%;\n  font-size: 20px;\n  position: absolute;\n  background: #fff;\n  transform: translateY(14px);\n  z-index: 1;\n  filter: drop-shadow(0px 10px 20px #00000029);\n  padding: 30px 24px;\n  padding-bottom: 12px;\n  border-radius: 10px; }\n  .cus-filter-dropDown::before {\n    width: 0;\n    height: 0;\n    border-style: solid;\n    border-width: 0 8px 10px 8px;\n    border-color: transparent transparent #ffffff transparent;\n    content: '';\n    position: absolute;\n    top: 0px;\n    right: 18px;\n    transform: translateY(-10px); }\n  .cus-filter-tag {\n  background-color: #e7fde0;\n  border-radius: 6px;\n  font-size: 14px;\n  padding: 4px 8px;\n  color: #333333;\n  display: inline-flex;\n  align-items: center;\n  cursor: pointer; }\n  .cus-filter-tag .icon-close {\n    font-size: 12px;\n    color: #999;\n    cursor: pointer; }\n  .cus-filter-tag-text {\n  text-overflow: ellipsis;\n  overflow: hidden;\n  white-space: nowrap;\n  max-width: 6em;\n  display: inline-block; }\n  input:focus + .cus-filter-tagContainer {\n  display: none; }\n  .cus-filter-tagContainer {\n  position: absolute;\n  top: 0px;\n  height: 100%;\n  left: 48px;\n  display: flex;\n  align-items: center;\n  max-width: calc(100% - 96px);\n  overflow: hidden; }\n\n/*# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbInNyYy9hcHAvY29tcG9uZW50L0U6XFxjb2RlXFxuaWNlRGF5SW5UYWl3YW4vc3JjXFxhcHBcXGNvbXBvbmVudFxcZmlsdGVyLnNjc3MiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUE7RUFDRSxXQUFXO0VBQ1gsYUFBYTtFQUNiLFdBQVc7RUFDWCxlQUFlO0VBQ2Ysa0JBQWtCO0VBQ2xCLGdCQUFnQjtFQUNoQiwyQkFBMkI7RUFDM0IsVUFBVTtFQUNWLDRDQUE0QztFQUM1QyxrQkFBa0I7RUFDbEIsb0JBQW9CO0VBQ3BCLG1CQUFtQixFQUFBO0VBWnJCO0lBY0ksUUFBUTtJQUNSLFNBQVM7SUFDVCxtQkFBbUI7SUFDbkIsNEJBQTRCO0lBQzVCLHlEQUF5RDtJQUN6RCxXQUFXO0lBQ1gsa0JBQWtCO0lBQ2xCLFFBQVE7SUFDUixXQUFXO0lBQ1gsNEJBQTRCLEVBQUE7RUFJaEM7RUFDRSx5QkFBeUI7RUFDekIsa0JBQWtCO0VBQ2xCLGVBQWU7RUFDZixnQkFBZ0I7RUFDaEIsY0FBYztFQUNkLG9CQUFvQjtFQUNwQixtQkFBbUI7RUFDbkIsZUFBZSxFQUFBO0VBUmpCO0lBVUksZUFBZTtJQUNmLFdBQVc7SUFDWCxlQUFlLEVBQUE7RUFHbkI7RUFDRSx1QkFBdUI7RUFDdkIsZ0JBQWdCO0VBQ2hCLG1CQUFtQjtFQUNuQixjQUFjO0VBQ2QscUJBQXFCLEVBQUE7RUFHdkI7RUFDRSxhQUFhLEVBQUE7RUFHZjtFQUNFLGtCQUFrQjtFQUNsQixRQUFRO0VBQ1IsWUFBWTtFQUNaLFVBQVU7RUFDVixhQUFhO0VBQ2IsbUJBQW1CO0VBQ25CLDRCQUE0QjtFQUM1QixnQkFBZ0IsRUFBQSIsImZpbGUiOiJzcmMvYXBwL2NvbXBvbmVudC9maWx0ZXIuc2NzcyIsInNvdXJjZXNDb250ZW50IjpbIi5jdXMtZmlsdGVyLWRyb3BEb3duIHtcclxuICBjb2xvcjogIzMzMztcclxuICBwYWRkaW5nOiAxMHB4O1xyXG4gIHdpZHRoOiAxMDAlO1xyXG4gIGZvbnQtc2l6ZTogMjBweDtcclxuICBwb3NpdGlvbjogYWJzb2x1dGU7XHJcbiAgYmFja2dyb3VuZDogI2ZmZjtcclxuICB0cmFuc2Zvcm06IHRyYW5zbGF0ZVkoMTRweCk7XHJcbiAgei1pbmRleDogMTtcclxuICBmaWx0ZXI6IGRyb3Atc2hhZG93KDBweCAxMHB4IDIwcHggIzAwMDAwMDI5KTtcclxuICBwYWRkaW5nOiAzMHB4IDI0cHg7XHJcbiAgcGFkZGluZy1ib3R0b206IDEycHg7XHJcbiAgYm9yZGVyLXJhZGl1czogMTBweDtcclxuICAmOjpiZWZvcmUge1xyXG4gICAgd2lkdGg6IDA7XHJcbiAgICBoZWlnaHQ6IDA7XHJcbiAgICBib3JkZXItc3R5bGU6IHNvbGlkO1xyXG4gICAgYm9yZGVyLXdpZHRoOiAwIDhweCAxMHB4IDhweDtcclxuICAgIGJvcmRlci1jb2xvcjogdHJhbnNwYXJlbnQgdHJhbnNwYXJlbnQgI2ZmZmZmZiB0cmFuc3BhcmVudDtcclxuICAgIGNvbnRlbnQ6ICcnO1xyXG4gICAgcG9zaXRpb246IGFic29sdXRlO1xyXG4gICAgdG9wOiAwcHg7XHJcbiAgICByaWdodDogMThweDtcclxuICAgIHRyYW5zZm9ybTogdHJhbnNsYXRlWSgtMTBweCk7XHJcbiAgfVxyXG59XHJcblxyXG4uY3VzLWZpbHRlci10YWcge1xyXG4gIGJhY2tncm91bmQtY29sb3I6ICNlN2ZkZTA7XHJcbiAgYm9yZGVyLXJhZGl1czogNnB4O1xyXG4gIGZvbnQtc2l6ZTogMTRweDtcclxuICBwYWRkaW5nOiA0cHggOHB4O1xyXG4gIGNvbG9yOiAjMzMzMzMzO1xyXG4gIGRpc3BsYXk6IGlubGluZS1mbGV4O1xyXG4gIGFsaWduLWl0ZW1zOiBjZW50ZXI7XHJcbiAgY3Vyc29yOiBwb2ludGVyO1xyXG4gIC5pY29uLWNsb3NlIHtcclxuICAgIGZvbnQtc2l6ZTogMTJweDtcclxuICAgIGNvbG9yOiAjOTk5O1xyXG4gICAgY3Vyc29yOiBwb2ludGVyO1xyXG4gIH1cclxufVxyXG4uY3VzLWZpbHRlci10YWctdGV4dCB7XHJcbiAgdGV4dC1vdmVyZmxvdzogZWxsaXBzaXM7XHJcbiAgb3ZlcmZsb3c6IGhpZGRlbjtcclxuICB3aGl0ZS1zcGFjZTogbm93cmFwO1xyXG4gIG1heC13aWR0aDogNmVtO1xyXG4gIGRpc3BsYXk6IGlubGluZS1ibG9jaztcclxufVxyXG5cclxuaW5wdXQ6Zm9jdXMgKyAuY3VzLWZpbHRlci10YWdDb250YWluZXIge1xyXG4gIGRpc3BsYXk6IG5vbmU7XHJcbn1cclxuXHJcbi5jdXMtZmlsdGVyLXRhZ0NvbnRhaW5lciB7XHJcbiAgcG9zaXRpb246IGFic29sdXRlO1xyXG4gIHRvcDogMHB4O1xyXG4gIGhlaWdodDogMTAwJTtcclxuICBsZWZ0OiA0OHB4O1xyXG4gIGRpc3BsYXk6IGZsZXg7XHJcbiAgYWxpZ24taXRlbXM6IGNlbnRlcjtcclxuICBtYXgtd2lkdGg6IGNhbGMoMTAwJSAtIDk2cHgpO1xyXG4gIG92ZXJmbG93OiBoaWRkZW47XHJcbn1cclxuIl19 */"
+
+/***/ }),
+
+/***/ "./src/app/component/groupSelect.component.html":
+/*!******************************************************!*\
+  !*** ./src/app/component/groupSelect.component.html ***!
+  \******************************************************/
+/*! no static exports found */
+/***/ (function(module, exports) {
+
+module.exports = "<div class=\"d-fl fl-jc-sb pb-xs fl-ai-c\">\r\n    <div class=\"cus-title--sm\">進階查詢條件</div>\r\n    <div class=\"c-third fs-d cursor-pointer\" (click)=\"clearOtherFilter()\">清除條件</div>\r\n</div>\r\n<div class=\"d-fl fl-jc-sb fl-wp\">\r\n    <div class=\"cus-groupSelect-layout\">\r\n        <div class=\" fs-d\">縣市</div>\r\n        <com-select class=\"cus-input-container fl-11a w-100\" (onSelect)=\"selfFilterDTo.city=$event\"\r\n            [value]=\"selfFilterDTo.city\" [hasFilter]=\"true\" [valueList]=\"cityList\"></com-select>\r\n    </div>\r\n    <div class=\" cus-groupSelect-layout\">\r\n        <div class=\"fs-d\">種類</div>\r\n        <com-select class=\"cus-input-container w-100\" (onSelect)=\"selfFilterDTo.group=$event\"\r\n            [value]=\"selfFilterDTo.group\" [valueList]=\"groupList\"></com-select>\r\n    </div>\r\n</div>\r\n<div class=\"d-fl fl-jc-sb fl-wp\">\r\n    <div class=\" cus-groupSelect-layout\">\r\n        <div class=\" fs-d\">票價</div>\r\n        <com-select class=\"cus-input-container fl-11a w-100\" (onSelect)=\"selfFilterDTo.ticket=$event\"\r\n            [value]=\"selfFilterDTo.ticket\" [valueList]=\"ticketList\"></com-select>\r\n    </div>\r\n    <div class=\" cus-groupSelect-layout\">\r\n        <div class=\"fs-d\">開放時間</div>\r\n        <com-select class=\"cus-input-container w-100\" (onSelect)=\"selfFilterDTo.openTime=$event\"\r\n            [value]=\"selfFilterDTo.openTime\" [valueList]=\"openList\"></com-select>\r\n    </div>\r\n</div>\r\n<div class=\"mt-xs ta-r\">\r\n    <button class=\"cus-btn cus-btn--primary\" (click)=\"search()\">出發去！</button>\r\n\r\n</div>"
+
+/***/ }),
+
+/***/ "./src/app/component/groupSelect.component.ts":
+/*!****************************************************!*\
+  !*** ./src/app/component/groupSelect.component.ts ***!
+  \****************************************************/
+/*! exports provided: GroupSelectComponent, cityList, groupList, ticketList, openList */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "GroupSelectComponent", function() { return GroupSelectComponent; });
+/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "cityList", function() { return cityList; });
+/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "groupList", function() { return groupList; });
+/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "ticketList", function() { return ticketList; });
+/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "openList", function() { return openList; });
+/* harmony import */ var tslib__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! tslib */ "./node_modules/tslib/tslib.es6.js");
+/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! @angular/core */ "./node_modules/@angular/core/fesm5/core.js");
+/* harmony import */ var _class_SpotGroupType__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ../class/SpotGroupType */ "./src/app/class/SpotGroupType.ts");
+
+
+
+var GroupSelectComponent = /** @class */ (function () {
+    function GroupSelectComponent() {
+        this.filterObj = {
+            city: '',
+            group: '',
+            searchText: '',
+            openTime: '',
+            ticket: '',
+        };
+        this.selfFilterDTo = {
+            city: '',
+            group: '',
+            searchText: '',
+            openTime: '',
+            ticket: '',
+        };
+        this.ticketList = ticketList;
+        this.openList = openList;
+        this.doFilter = new _angular_core__WEBPACK_IMPORTED_MODULE_1__["EventEmitter"]();
+        this.cityList = cityList;
+        this.groupList = groupList;
+    }
+    GroupSelectComponent.prototype.ngOnChanges = function (changes) {
+        this.selfFilterDTo = JSON.parse(JSON.stringify(this.filterObj));
+    };
+    GroupSelectComponent.prototype.search = function () {
+        this.doFilter.emit(this.selfFilterDTo);
+    };
+    GroupSelectComponent.prototype.clearOtherFilter = function () {
+        this.selfFilterDTo = tslib__WEBPACK_IMPORTED_MODULE_0__["__assign"]({}, this.filterObj, { city: '', group: '', openTime: '', ticket: '' });
+    };
+    tslib__WEBPACK_IMPORTED_MODULE_0__["__decorate"]([
+        Object(_angular_core__WEBPACK_IMPORTED_MODULE_1__["Input"])(),
+        tslib__WEBPACK_IMPORTED_MODULE_0__["__metadata"]("design:type", Object)
+    ], GroupSelectComponent.prototype, "filterObj", void 0);
+    tslib__WEBPACK_IMPORTED_MODULE_0__["__decorate"]([
+        Object(_angular_core__WEBPACK_IMPORTED_MODULE_1__["Output"])(),
+        tslib__WEBPACK_IMPORTED_MODULE_0__["__metadata"]("design:type", Object)
+    ], GroupSelectComponent.prototype, "doFilter", void 0);
+    GroupSelectComponent = tslib__WEBPACK_IMPORTED_MODULE_0__["__decorate"]([
+        Object(_angular_core__WEBPACK_IMPORTED_MODULE_1__["Component"])({
+            selector: 'com-group-select',
+            template: __webpack_require__(/*! ./groupSelect.component.html */ "./src/app/component/groupSelect.component.html"),
+        })
+    ], GroupSelectComponent);
+    return GroupSelectComponent;
+}());
+
+var cityList = [
+    { name: '臺北市', key: 'Taipei', icon: 'icon-location' },
+    { name: '新北市', key: 'NewTaipei', icon: 'icon-location' },
+    { name: '桃園市', key: 'Taoyuan', icon: 'icon-location' },
+    { name: '臺中市', key: 'Taichung', icon: 'icon-location' },
+    { name: '臺南市', key: 'Tainan', icon: 'icon-location' },
+    { name: '高雄市', key: 'Kaohsiung', icon: 'icon-location' },
+    { name: '基隆市', key: 'Keelung', icon: 'icon-location' },
+    { name: '新竹市', key: 'Hsinchu', icon: 'icon-location' },
+    { name: '新竹縣', key: 'HsinchuCounty', icon: 'icon-location' },
+    { name: '苗栗縣', key: 'MiaoliCounty', icon: 'icon-location' },
+    { name: '彰化縣', key: 'ChanghuaCounty', icon: 'icon-location' },
+    { name: '南投縣', key: 'NantouCounty', icon: 'icon-location' },
+    { name: '雲林縣', key: 'YunlinCounty', icon: 'icon-location' },
+    { name: '嘉義縣', key: 'ChiayiCounty', icon: 'icon-location' },
+    { name: '嘉義市', key: 'Chiayi', icon: 'icon-location' },
+    { name: '屏東縣', key: 'PingtungCounty', icon: 'icon-location' },
+    { name: '宜蘭縣', key: 'YilanCounty', icon: 'icon-location' },
+    { name: '花蓮縣', key: 'HualienCounty', icon: 'icon-location' },
+    { name: '臺東縣', key: 'TaitungCounty', icon: 'icon-location' },
+    { name: '金門縣', key: 'KinmenCounty', icon: 'icon-location' },
+    { name: '澎湖縣', key: 'PenghuCounty', icon: 'icon-location' },
+    { name: '連江縣', key: 'LienchiangCounty', icon: 'icon-location' },
+];
+var groupList = [
+    {
+        name: _class_SpotGroupType__WEBPACK_IMPORTED_MODULE_2__["SpotGroupType"].NATURE,
+        key: _class_SpotGroupType__WEBPACK_IMPORTED_MODULE_2__["SpotGroupType"].NATURE,
+        icon: 'item-nature',
+    },
+    {
+        name: _class_SpotGroupType__WEBPACK_IMPORTED_MODULE_2__["SpotGroupType"].FARM,
+        key: _class_SpotGroupType__WEBPACK_IMPORTED_MODULE_2__["SpotGroupType"].FARM,
+        icon: 'item-farm',
+    },
+    {
+        name: _class_SpotGroupType__WEBPACK_IMPORTED_MODULE_2__["SpotGroupType"].CULTURE,
+        key: _class_SpotGroupType__WEBPACK_IMPORTED_MODULE_2__["SpotGroupType"].CULTURE,
+        icon: 'item-culture',
+    },
+    {
+        name: _class_SpotGroupType__WEBPACK_IMPORTED_MODULE_2__["SpotGroupType"].OTHER,
+        key: _class_SpotGroupType__WEBPACK_IMPORTED_MODULE_2__["SpotGroupType"].OTHER,
+        icon: 'item-other',
+    },
+];
+var ticketList = [
+    { name: '免費', key: '免費' },
+    { name: '收費', key: '收費' }
+];
+var openList = [
+    { name: '全年', key: '全年' },
+    { name: '預約', key: '預約' }
+];
+
+
+/***/ }),
+
+/***/ "./src/app/component/imgLoader.component.html":
+/*!****************************************************!*\
+  !*** ./src/app/component/imgLoader.component.html ***!
+  \****************************************************/
+/*! no static exports found */
+/***/ (function(module, exports) {
+
+module.exports = "<div class=\"cus-imgLoader\" [style.background-image]=\"'url('+imgSrc+')'\" [title]=\"title\" \r\n[ngClass]=\"{'cus-imgLoader-fail':failLoader&&!isLoading,'cus-imgLoader-loading':isLoading}\">\r\n</div>"
+
+/***/ }),
+
+/***/ "./src/app/component/imgLoader.component.ts":
+/*!**************************************************!*\
+  !*** ./src/app/component/imgLoader.component.ts ***!
+  \**************************************************/
+/*! exports provided: ImgLoaderComponent */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "ImgLoaderComponent", function() { return ImgLoaderComponent; });
+/* harmony import */ var tslib__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! tslib */ "./node_modules/tslib/tslib.es6.js");
+/* harmony import */ var _angular_common_http__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! @angular/common/http */ "./node_modules/@angular/common/fesm5/http.js");
+/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! @angular/core */ "./node_modules/@angular/core/fesm5/core.js");
+
+
+
+var ImgLoaderComponent = /** @class */ (function () {
+    function ImgLoaderComponent(http) {
+        this.http = http;
+        this.imgSrc = "";
+        this.title = "";
+        this.failLoader = true;
+        this.isLoading = true;
+    }
+    ImgLoaderComponent.prototype.ngOnChanges = function (changes) {
+        if (this.imgSrc) {
+            this.getImg();
+        }
+    };
+    ImgLoaderComponent.prototype.getImg = function () {
+        var _this = this;
+        var image = new Image();
+        image.onload = function () {
+            _this.failLoader = false;
+            _this.isLoading = false;
+            console.log('load', _this.imgSrc, image.complete);
+        };
+        image.onerror = function () {
+            _this.failLoader = true;
+            _this.isLoading = false;
+            console.log('error', _this.imgSrc, image.complete);
+        };
+        image.src = this.imgSrc;
+        if (image.complete) {
+            // this.failLoader = false;
+            // this.isLoading = false;
+            console.log('complete', this.imgSrc);
+        }
+    };
+    tslib__WEBPACK_IMPORTED_MODULE_0__["__decorate"]([
+        Object(_angular_core__WEBPACK_IMPORTED_MODULE_2__["Input"])(),
+        tslib__WEBPACK_IMPORTED_MODULE_0__["__metadata"]("design:type", Object)
+    ], ImgLoaderComponent.prototype, "imgSrc", void 0);
+    tslib__WEBPACK_IMPORTED_MODULE_0__["__decorate"]([
+        Object(_angular_core__WEBPACK_IMPORTED_MODULE_2__["Input"])(),
+        tslib__WEBPACK_IMPORTED_MODULE_0__["__metadata"]("design:type", Object)
+    ], ImgLoaderComponent.prototype, "title", void 0);
+    ImgLoaderComponent = tslib__WEBPACK_IMPORTED_MODULE_0__["__decorate"]([
+        Object(_angular_core__WEBPACK_IMPORTED_MODULE_2__["Component"])({
+            selector: 'com-img',
+            template: __webpack_require__(/*! ./imgLoader.component.html */ "./src/app/component/imgLoader.component.html"),
+        }),
+        tslib__WEBPACK_IMPORTED_MODULE_0__["__metadata"]("design:paramtypes", [_angular_common_http__WEBPACK_IMPORTED_MODULE_1__["HttpClient"]])
+    ], ImgLoaderComponent);
+    return ImgLoaderComponent;
+}());
+
+
 
 /***/ }),
 
@@ -604,7 +961,7 @@ module.exports = ".cus-filter-dropDown {\n  color: #333;\n  padding: 10px;\n  wi
 /*! no static exports found */
 /***/ (function(module, exports) {
 
-module.exports = "<div class=\"cus-model-header\">\n    <div>\n      \n    </div>\n    <div>{{data.name}}</div>\n    <div>\n        <i class=\"icon-close c-third\" (click)=\"close()\"></i>\n    </div>\n</div>\n<div class=\"cus-model-container\">\n   <div class=\"cus-model-container-img\" [style.background-image]=\"'url('+data.imgUrl+')'\"></div>\n    <div class=\"mt-xs pt-xs fs-lg fw-600\">簡介</div>\n    <div class=\"fs-d pb-xs\">{{data.description}}</div>\n    <div class=\"d-fl pt-xs fl-wp\">\n        <div *ngFor=\"let item of infoList\" class=\"d-fl cus-detail-info mb-xs pt-xs\">\n            <div class=\"fs-xl c-sub mr-xs\">\n               <i [ngClass]=\"item.iconClass\"></i>\n            </div>\n            <div>\n                <div class=\"cus-title--sm mb-xs\">{{item.title}}</div>\n                <div class=\"c-third\">{{data[item.key]||'未提供'}}</div>\n            </div>\n        </div>\n    </div>\n    \n</div>"
+module.exports = "<div class=\"cus-model-header\">\r\n    <div>\r\n      \r\n    </div>\r\n    <div>{{data.name}}</div>\r\n    <div>\r\n        <i class=\"icon-close c-third\" (click)=\"close()\"></i>\r\n    </div>\r\n</div>\r\n<div class=\"cus-model-container\">\r\n   <div class=\"cus-model-container-img\">\r\n    <com-img [imgSrc]=\"data.imgUrl\" [title]=\"data.name\"></com-img>\r\n   </div>\r\n  \r\n    <div class=\"mt-xs pt-xs fs-lg fw-600\">簡介</div>\r\n    <div class=\"fs-d pb-xs\">{{data.description}}</div>\r\n    <div class=\"d-fl pt-xs fl-wp\">\r\n        <div *ngFor=\"let item of infoList\" class=\"d-fl cus-detail-info mb-xs pt-xs\">\r\n            <div class=\"fs-xl c-sub mr-xs\">\r\n               <i [ngClass]=\"item.iconClass\"></i>\r\n            </div>\r\n            <div>\r\n                <div class=\"cus-title--sm mb-xs\">{{item.title}}</div>\r\n                <div class=\"c-third\">{{data[item.key]||'未提供'}}</div>\r\n            </div>\r\n        </div>\r\n    </div>\r\n    \r\n</div>"
 
 /***/ }),
 
@@ -668,7 +1025,7 @@ var RestaurantComponent = /** @class */ (function () {
 /*! no static exports found */
 /***/ (function(module, exports) {
 
-module.exports = "<div class=\"cus-input-container\" (click)=\"showList=!showList\">\n    <input class=\"cus-input cus-input--select\"  readonly [value]=\"value?.name\" placeholder=\"請輸入\">\n    <i class=\"icon-down-arrow\"></i>\n    <div *ngIf=\"showList\" class=\"cus-select-list\"> \n        <div class=\"cus-select-list-item\" *ngIf=\"hasFilter\">\n            <input class=\"cus-input cus-input--select\" placeholder=\"輸入關鍵字\" [(ngModel)]=\"filterText\">\n        </div>\n        <ng-container *ngFor=\"let item of valueList\">\n            <div *ngIf=\"filterText?item.name.includes(filterText):true\"\n            [ngClass]=\"{'cus-select-list-item--active':value===item}\"\n             class=\"cus-select-list-item\"\n              (click)=\"selectItem(item)\">{{item.name}}</div>\n        </ng-container>\n        \n    </div>\n</div>\n\n    \n"
+module.exports = "<div class=\"cus-input-container\" (click)=\"showList=!showList\">\r\n    <input class=\"cus-input cus-input--select\"  readonly [value]=\"getCurrentName()\" [placeholder]=\"placeholder\">\r\n    <i class=\"icon-down-arrow\"></i>\r\n    <div *ngIf=\"showList\" class=\"cus-select-list\"> \r\n        <div class=\"cus-select-list-item\" *ngIf=\"hasFilter\"  (click)=\"$event.preventDefault();$event.stopPropagation();\">\r\n            <input class=\"cus-input cus-input--select\" placeholder=\"輸入關鍵字\" [(ngModel)]=\"filterText\">\r\n        </div>\r\n        <ng-container *ngFor=\"let item of valueList\">\r\n            <div *ngIf=\"filterText?item.name.includes(filterText):true\"\r\n            [ngClass]=\"{'cus-select-list-item--active':value===item.key}\"\r\n             class=\"cus-select-list-item\"\r\n              (click)=\"selectItem(item);$event.stopPropagation();\">\r\n              <div class=\"cus-select-list-item-icon\" *ngIf=\"item.icon\" [ngClass]=\"item.icon\"></div>\r\n              {{item.name}}\r\n            </div>\r\n        </ng-container>\r\n        \r\n    </div>\r\n</div>\r\n\r\n    \r\n"
 
 /***/ }),
 
@@ -684,22 +1041,47 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "SelectComponent", function() { return SelectComponent; });
 /* harmony import */ var tslib__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! tslib */ "./node_modules/tslib/tslib.es6.js");
 /* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! @angular/core */ "./node_modules/@angular/core/fesm5/core.js");
+/* harmony import */ var jquery__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! jquery */ "./node_modules/jquery/dist/jquery.js");
+/* harmony import */ var jquery__WEBPACK_IMPORTED_MODULE_2___default = /*#__PURE__*/__webpack_require__.n(jquery__WEBPACK_IMPORTED_MODULE_2__);
+
 
 
 var SelectComponent = /** @class */ (function () {
-    function SelectComponent() {
+    function SelectComponent(elementRef) {
+        this.elementRef = elementRef;
+        this.placeholder = '請輸入';
         this.hasFilter = false;
         this.onSelect = new _angular_core__WEBPACK_IMPORTED_MODULE_1__["EventEmitter"]();
-        this.value = null;
+        this.value = '';
         this.valueList = [];
         this.showList = false;
         this.filterText = '';
     }
-    SelectComponent.prototype.selectItem = function (item) {
-        this.value = item;
-        this.onSelect.emit(item);
-        this.filterText = '';
+    SelectComponent.prototype.ngAfterViewInit = function () {
+        var _this = this;
+        jquery__WEBPACK_IMPORTED_MODULE_2__(document).on('click', 'body', function (event) {
+            if (_this.elementRef && !jquery__WEBPACK_IMPORTED_MODULE_2__["contains"](_this.elementRef.nativeElement, event.target) && _this.elementRef.nativeElement !== event.target) {
+                _this.showList = false;
+            }
+        });
     };
+    SelectComponent.prototype.ngOnDestroy = function () {
+    };
+    SelectComponent.prototype.selectItem = function (item) {
+        this.value = item.key;
+        this.onSelect.emit(item.key);
+        this.filterText = '';
+        this.showList = false;
+    };
+    SelectComponent.prototype.getCurrentName = function () {
+        var _this = this;
+        var current = this.valueList.find(function (d) { return d.key === _this.value; });
+        return current ? current.name : '';
+    };
+    tslib__WEBPACK_IMPORTED_MODULE_0__["__decorate"]([
+        Object(_angular_core__WEBPACK_IMPORTED_MODULE_1__["Input"])(),
+        tslib__WEBPACK_IMPORTED_MODULE_0__["__metadata"]("design:type", Object)
+    ], SelectComponent.prototype, "placeholder", void 0);
     tslib__WEBPACK_IMPORTED_MODULE_0__["__decorate"]([
         Object(_angular_core__WEBPACK_IMPORTED_MODULE_1__["Input"])(),
         tslib__WEBPACK_IMPORTED_MODULE_0__["__metadata"]("design:type", Object)
@@ -721,7 +1103,8 @@ var SelectComponent = /** @class */ (function () {
             selector: "com-select",
             template: __webpack_require__(/*! ./select.component.html */ "./src/app/component/select.component.html"),
             styles: [__webpack_require__(/*! ./select.scss */ "./src/app/component/select.scss")]
-        })
+        }),
+        tslib__WEBPACK_IMPORTED_MODULE_0__["__metadata"]("design:paramtypes", [_angular_core__WEBPACK_IMPORTED_MODULE_1__["ElementRef"]])
     ], SelectComponent);
     return SelectComponent;
 }());
@@ -737,7 +1120,7 @@ var SelectComponent = /** @class */ (function () {
 /*! no static exports found */
 /***/ (function(module, exports) {
 
-module.exports = ".cus-select-list {\n  color: #333;\n  padding: 10px;\n  border-radius: 6px;\n  border: 1px solid #ccc;\n  width: 100%;\n  font-size: 20px;\n  position: absolute;\n  background: #fff;\n  transform: translateY(8px);\n  overflow: hidden;\n  overflow-y: scroll;\n  max-height: 9em;\n}\n\n.cus-select-list-item {\n  padding: 5px;\n  color: #333;\n}\n\n.cus-select-list-item--active {\n  background-color: #E8E8E8;\n}\n/*# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbIi9Vc2Vycy9uYW1lL2plbm55L3BsYXlncm91bmQvZjJlMjAyMS9mMmUyMDIxLXRhaXdhblRyYXZlbGluZy9zcmMvYXBwL2NvbXBvbmVudC9zZWxlY3Quc2NzcyIsInNyYy9hcHAvY29tcG9uZW50L3NlbGVjdC5zY3NzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQUFBO0VBQ0ksV0FBQTtFQUNBLGFBQUE7RUFDQSxrQkFBQTtFQUNBLHNCQUFBO0VBQ0EsV0FBQTtFQUNBLGVBQUE7RUFDQSxrQkFBQTtFQUNBLGdCQUFBO0VBQ0EsMEJBQUE7RUFDQSxnQkFBQTtFQUNBLGtCQUFBO0VBQ0EsZUFBQTtBQ0NKOztBRENBO0VBQ0ksWUFBQTtFQUNBLFdBQUE7QUNFSjs7QURFQTtFQUNJLHlCQUFBO0FDQ0oiLCJmaWxlIjoic3JjL2FwcC9jb21wb25lbnQvc2VsZWN0LnNjc3MiLCJzb3VyY2VzQ29udGVudCI6WyIuY3VzLXNlbGVjdC1saXN0e1xuICAgIGNvbG9yOiAjMzMzO1xuICAgIHBhZGRpbmc6IDEwcHg7XG4gICAgYm9yZGVyLXJhZGl1czogNnB4O1xuICAgIGJvcmRlcjogMXB4IHNvbGlkICNjY2M7XG4gICAgd2lkdGg6IDEwMCU7XG4gICAgZm9udC1zaXplOiAyMHB4O1xuICAgIHBvc2l0aW9uOmFic29sdXRlO1xuICAgIGJhY2tncm91bmQ6ICNmZmY7XG4gICAgdHJhbnNmb3JtOiB0cmFuc2xhdGVZKDhweCk7XG4gICAgb3ZlcmZsb3c6IGhpZGRlbjtcbiAgICBvdmVyZmxvdy15OiBzY3JvbGw7XG4gICAgbWF4LWhlaWdodDogOWVtO1xufVxuLmN1cy1zZWxlY3QtbGlzdC1pdGVte1xuICAgIHBhZGRpbmc6IDVweDtcbiAgICBjb2xvcjogIzMzMztcbn1cblxuXG4uY3VzLXNlbGVjdC1saXN0LWl0ZW0tLWFjdGl2ZXtcbiAgICBiYWNrZ3JvdW5kLWNvbG9yOiAjRThFOEU4O1xufSIsIi5jdXMtc2VsZWN0LWxpc3Qge1xuICBjb2xvcjogIzMzMztcbiAgcGFkZGluZzogMTBweDtcbiAgYm9yZGVyLXJhZGl1czogNnB4O1xuICBib3JkZXI6IDFweCBzb2xpZCAjY2NjO1xuICB3aWR0aDogMTAwJTtcbiAgZm9udC1zaXplOiAyMHB4O1xuICBwb3NpdGlvbjogYWJzb2x1dGU7XG4gIGJhY2tncm91bmQ6ICNmZmY7XG4gIHRyYW5zZm9ybTogdHJhbnNsYXRlWSg4cHgpO1xuICBvdmVyZmxvdzogaGlkZGVuO1xuICBvdmVyZmxvdy15OiBzY3JvbGw7XG4gIG1heC1oZWlnaHQ6IDllbTtcbn1cblxuLmN1cy1zZWxlY3QtbGlzdC1pdGVtIHtcbiAgcGFkZGluZzogNXB4O1xuICBjb2xvcjogIzMzMztcbn1cblxuLmN1cy1zZWxlY3QtbGlzdC1pdGVtLS1hY3RpdmUge1xuICBiYWNrZ3JvdW5kLWNvbG9yOiAjRThFOEU4O1xufSJdfQ== */"
+module.exports = ".cus-select-list {\n  color: #333;\n  padding: 10px 0px;\n  border-radius: 6px;\n  border: 1px solid #ccc;\n  width: 100%;\n  font-size: 20px;\n  position: absolute;\n  background: #fff;\n  transform: translateY(8px);\n  overflow: hidden;\n  overflow-y: auto;\n  max-height: 12em;\n  z-index: 1; }\n\n.cus-select-list-item {\n  padding: 5px 15px;\n  color: #333;\n  display: flex;\n  align-items: center; }\n\n.cus-select-list-item--active {\n  background-color: #E8E8E8; }\n\n.cus-select-list-item-icon {\n  margin-right: 24px;\n  width: 36px;\n  height: 36px;\n  display: inline-block;\n  background-position: center;\n  background-repeat: no-repeat; }\n\n.cus-select-list-item-icon.icon-location {\n    font-size: 36px;\n    color: #65CC48; }\n\n.item-nature {\n  background-image: url(\"/assets/illustrator/dropdown-nature.svg\"); }\n\n.item-farm {\n  background-image: url(\"/assets/illustrator/dropdown-farm.svg\"); }\n\n.item-culture {\n  background-image: url(\"/assets/illustrator/dropdown-cluture.svg\"); }\n\n.item-other {\n  background-image: url(\"/assets/illustrator/dropdown-other.svg\"); }\n\n/*# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbInNyYy9hcHAvY29tcG9uZW50L0U6XFxjb2RlXFxuaWNlRGF5SW5UYWl3YW4vc3JjXFxhcHBcXGNvbXBvbmVudFxcc2VsZWN0LnNjc3MiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUE7RUFDSSxXQUFXO0VBQ1gsaUJBQWlCO0VBQ2pCLGtCQUFrQjtFQUNsQixzQkFBc0I7RUFDdEIsV0FBVztFQUNYLGVBQWU7RUFDZixrQkFBaUI7RUFDakIsZ0JBQWdCO0VBQ2hCLDBCQUEwQjtFQUMxQixnQkFBZ0I7RUFDaEIsZ0JBQWdCO0VBQ2hCLGdCQUFlO0VBQ2YsVUFBVSxFQUFBOztBQUVkO0VBQ0ksaUJBQWlCO0VBQ2pCLFdBQVc7RUFDWCxhQUFhO0VBQ2IsbUJBQW1CLEVBQUE7O0FBSXZCO0VBQ0kseUJBQXlCLEVBQUE7O0FBRzdCO0VBQ0ksa0JBQWtCO0VBQ2xCLFdBQVc7RUFDWCxZQUFZO0VBQ1oscUJBQXFCO0VBQ3JCLDJCQUEyQjtFQUMzQiw0QkFBNEIsRUFBQTs7QUFOaEM7SUFRUSxlQUFlO0lBQ2YsY0FBYyxFQUFBOztBQU10QjtFQUNJLGdFQUFnRSxFQUFBOztBQUVwRTtFQUNJLDhEQUE4RCxFQUFBOztBQUVsRTtFQUNJLGlFQUFpRSxFQUFBOztBQUVyRTtFQUNJLCtEQUErRCxFQUFBIiwiZmlsZSI6InNyYy9hcHAvY29tcG9uZW50L3NlbGVjdC5zY3NzIiwic291cmNlc0NvbnRlbnQiOlsiLmN1cy1zZWxlY3QtbGlzdHtcclxuICAgIGNvbG9yOiAjMzMzO1xyXG4gICAgcGFkZGluZzogMTBweCAwcHg7XHJcbiAgICBib3JkZXItcmFkaXVzOiA2cHg7XHJcbiAgICBib3JkZXI6IDFweCBzb2xpZCAjY2NjO1xyXG4gICAgd2lkdGg6IDEwMCU7XHJcbiAgICBmb250LXNpemU6IDIwcHg7XHJcbiAgICBwb3NpdGlvbjphYnNvbHV0ZTtcclxuICAgIGJhY2tncm91bmQ6ICNmZmY7XHJcbiAgICB0cmFuc2Zvcm06IHRyYW5zbGF0ZVkoOHB4KTtcclxuICAgIG92ZXJmbG93OiBoaWRkZW47XHJcbiAgICBvdmVyZmxvdy15OiBhdXRvO1xyXG4gICAgbWF4LWhlaWdodDoxMmVtO1xyXG4gICAgei1pbmRleDogMTtcclxufVxyXG4uY3VzLXNlbGVjdC1saXN0LWl0ZW17XHJcbiAgICBwYWRkaW5nOiA1cHggMTVweDtcclxuICAgIGNvbG9yOiAjMzMzO1xyXG4gICAgZGlzcGxheTogZmxleDtcclxuICAgIGFsaWduLWl0ZW1zOiBjZW50ZXI7XHJcbn1cclxuXHJcblxyXG4uY3VzLXNlbGVjdC1saXN0LWl0ZW0tLWFjdGl2ZXtcclxuICAgIGJhY2tncm91bmQtY29sb3I6ICNFOEU4RTg7XHJcbn1cclxuXHJcbi5jdXMtc2VsZWN0LWxpc3QtaXRlbS1pY29ue1xyXG4gICAgbWFyZ2luLXJpZ2h0OiAyNHB4O1xyXG4gICAgd2lkdGg6IDM2cHg7XHJcbiAgICBoZWlnaHQ6IDM2cHg7XHJcbiAgICBkaXNwbGF5OiBpbmxpbmUtYmxvY2s7XHJcbiAgICBiYWNrZ3JvdW5kLXBvc2l0aW9uOiBjZW50ZXI7XHJcbiAgICBiYWNrZ3JvdW5kLXJlcGVhdDogbm8tcmVwZWF0O1xyXG4gICAgJi5pY29uLWxvY2F0aW9ue1xyXG4gICAgICAgIGZvbnQtc2l6ZTogMzZweDtcclxuICAgICAgICBjb2xvcjogIzY1Q0M0ODtcclxuICAgIH1cclxufVxyXG5cclxuXHJcblxyXG4uaXRlbS1uYXR1cmV7XHJcbiAgICBiYWNrZ3JvdW5kLWltYWdlOiB1cmwoXCIvYXNzZXRzL2lsbHVzdHJhdG9yL2Ryb3Bkb3duLW5hdHVyZS5zdmdcIik7XHJcbn1cclxuLml0ZW0tZmFybXtcclxuICAgIGJhY2tncm91bmQtaW1hZ2U6IHVybChcIi9hc3NldHMvaWxsdXN0cmF0b3IvZHJvcGRvd24tZmFybS5zdmdcIik7XHJcbn1cclxuLml0ZW0tY3VsdHVyZXtcclxuICAgIGJhY2tncm91bmQtaW1hZ2U6IHVybChcIi9hc3NldHMvaWxsdXN0cmF0b3IvZHJvcGRvd24tY2x1dHVyZS5zdmdcIik7XHJcbn1cclxuLml0ZW0tb3RoZXJ7XHJcbiAgICBiYWNrZ3JvdW5kLWltYWdlOiB1cmwoXCIvYXNzZXRzL2lsbHVzdHJhdG9yL2Ryb3Bkb3duLW90aGVyLnN2Z1wiKTtcclxufSJdfQ== */"
 
 /***/ }),
 
@@ -748,7 +1131,7 @@ module.exports = ".cus-select-list {\n  color: #333;\n  padding: 10px;\n  border
 /*! no static exports found */
 /***/ (function(module, exports) {
 
-module.exports = "<div class=\"cus-card\" (click)=\"outPutClick()\">\n    <div class=\"cus-card-img\">\n        <img [src]=\"spot.img.url\" [title]=\"spot.img.title\">\n    </div>\n    <div class=\"cus-card-info\">\n        <div class=\"cus-title--sm mb-sm\">{{spot.name}}</div>\n        <div class=\"c-sub fw-600 mb-sm cus-card-time\">{{spot.openTime}}</div>\n    </div>\n    <div class=\"cus-card-tag\"> \n        <span *ngFor=\"let tag of spot.typeList\" class=\"cus-tag mr-xs mb-xs\" \n        [ngClass]=\"getTagClass(tag)\">\n            {{tag}}\n        </span>\n    </div>\n</div>"
+module.exports = "<div class=\"cus-card\" (click)=\"outPutClick()\">\r\n    <div class=\"cus-card-img\">\r\n        <com-img [imgSrc]=\"spot.img.url\" [title]=\"spot.img.title\"></com-img>\r\n    </div>\r\n    <div class=\"cus-card-info\">\r\n        <div class=\"cus-title--sm mb-sm cus-text-over\" [title]=\"spot.name\">{{spot.name}}</div>\r\n        <div class=\"c-sub fw-600 mb-sm cus-card-time\" [title]=\"spot.openTime\">{{spot.openTime}}</div>\r\n    </div>\r\n    <div class=\"cus-card-tag\"> \r\n        <span *ngFor=\"let tag of spot.typeList\" class=\"cus-tag mr-xs mb-xs\" \r\n        [ngClass]=\"getTagClass(tag)\">\r\n            {{tag}}\r\n        </span>\r\n    </div>\r\n</div>"
 
 /***/ }),
 
@@ -788,7 +1171,7 @@ var SpotCardComponent = /** @class */ (function () {
     SpotCardComponent.prototype.getTagClass = function (tag) {
         var _a;
         var tagMap = (_a = {},
-            _a[_class_SpotGroupType__WEBPACK_IMPORTED_MODULE_2__["SpotGroupType"].NATION] = 'cus-tag--nature',
+            _a[_class_SpotGroupType__WEBPACK_IMPORTED_MODULE_2__["SpotGroupType"].NATURE] = 'cus-tag--nature',
             _a[_class_SpotGroupType__WEBPACK_IMPORTED_MODULE_2__["SpotGroupType"].FARM] = 'cus-tag--farm',
             _a[_class_SpotGroupType__WEBPACK_IMPORTED_MODULE_2__["SpotGroupType"].CULTURE] = 'cus-tag--culture',
             _a[_class_SpotGroupType__WEBPACK_IMPORTED_MODULE_2__["SpotGroupType"].OTHER] = 'cus-tag--other',
@@ -823,7 +1206,7 @@ var SpotCardComponent = /** @class */ (function () {
 /*! no static exports found */
 /***/ (function(module, exports) {
 
-module.exports = "<div class=\"cus-footer\">\n    <div class=\"cus-container\">\n        Taiwan Traveling © Code: frog / Design: apple\n    </div>\n</div>"
+module.exports = "<div class=\"cus-footer\">\r\n    <div class=\"cus-container\">\r\n        Taiwan Traveling © Code: frog / Design: apple\r\n    </div>\r\n</div>"
 
 /***/ }),
 
@@ -864,7 +1247,7 @@ var FooterComponent = /** @class */ (function () {
 /*! no static exports found */
 /***/ (function(module, exports) {
 
-module.exports = "<div class=\"cus-header\">\n   \n    <div class=\"cus-container cus-header-container\">\n        <a routerLink=\"/\" class=\"cus-header-logo\">\n            <i class=\"icon-mountain\"></i> Taiwan Traveling\n        </a>\n    </div>\n</div>"
+module.exports = "<div class=\"cus-header\">\r\n   \r\n    <div class=\"cus-container cus-header-container\">\r\n        <a routerLink=\"/\" class=\"cus-header-logo\">\r\n            <i class=\"icon-mountain\"></i> Taiwan Traveling\r\n        </a>\r\n    </div>\r\n</div>"
 
 /***/ }),
 
@@ -906,7 +1289,7 @@ var HeaderComponent = /** @class */ (function () {
 /*! no static exports found */
 /***/ (function(module, exports) {
 
-module.exports = "<div class=\"cus-detail\">\n    <div class=\"cus-detail-keyVersion\" [style.background-image]=\"'url('+spot?.imgUrlList[0]?.url+')'\">\n        <div class=\"cus-container cus-detail-keyVersion-info\">\n            <h1 class=\"cus-detail-keyVersion-info-title mb-xs\">{{spot.name}}</h1>\n            <div class=\"cus-detail-keyVersion-info-address\">\n                <i class=\"icon-address c-info\"></i>\n                {{spot.address}}\n                <span class=\"c-info\">&nbsp;前往地圖</span>\n            </div>\n        </div>\n    </div>\n    <div class=\"cus-container pt-xs pb-xl\">\n\n        <div>\n            <div class=\"c-third fs-d\">\n                <i class=\"icon-home\"></i>\n                首頁 /{{spot.name}}\n            </div>\n            <div class=\"d-fl fl-wp mt-d fl-jc-sb\">\n                <div class=\"cus-detail-info\">\n                    <h3 class=\"cus-title--d\">\n                        <i class=\"icon-infomation c-primary\"></i>\n                        景點介紹</h3>\n                    <div class=\"c-third fs-sm pb-xs\">資料更新時間：YYYY/MM/DD HH:mm:ss</div>\n                    <div class=\"cus-title--sm pt-xs mb-xs\">簡介</div>\n                    <div class=\"fs-sm\">{{spot.descriptionDetail}}</div>\n                    <div *ngFor=\"let item of infoList\" class=\"d-fl pt-xs mt-xs\">\n                        <div class=\"fs-xl c-sub mr-xs\">\n                           <i [ngClass]=\"item.iconClass\"></i>\n                        </div>\n                        <div>\n                            <div class=\"cus-title--sm mb-xs\">{{item.title}}</div>\n                            <div class=\"c-third\">{{spot[item.key]||'未提供'}}</div>\n                        </div>\n                    </div>\n                </div>\n                <div class=\"cus-detail-position-container\">\n                    <div class=\"cus-detail-position-container-map\"></div>\n                </div>\n            </div>\n            \n            <h3 class=\"cus-title--d mt-sm pt-sm\"><i class=\"icon-foods c-primary\"></i>周邊美食</h3>\n            <div class=\"mt-xs pt-xs pb-sm d-fl cus-card-container\">\n                <div class=\"cus-food-card\" (click)=\"openFoodDialog(food)\" [style.background-image]=\"'url('+food.imgUrl+')'\" *ngFor=\"let food of restaurantList\">\n                    <div class=\"fs-lg\">{{food.name}}</div>\n                    <div class=\"mt-xs fs-d\">\n                        <i class=\"icon-distance\"></i>\n                        &nbsp;\n                        距 {{food.position}} 公尺\n                    </div>\n                </div>\n            </div>\n        </div>\n    </div>\n\n</div>"
+module.exports = "<div class=\"cus-detail\">\r\n    <div class=\"cus-detail-keyVersion\">\r\n        <com-img [imgSrc]=\"spot?.imgUrlList[0]?.url\"></com-img>\r\n        <div class=\"cus-container cus-detail-keyVersion-info\">\r\n            <h1 class=\"cus-detail-keyVersion-info-title mb-xs\">{{spot.name}}</h1>\r\n            <div class=\"cus-detail-keyVersion-info-address\">\r\n                <i class=\"icon-address c-info\"></i>\r\n                {{spot.address}}\r\n                <span class=\"c-info\" (click)=\"goToMap()\">&nbsp;前往地圖</span>\r\n            </div>\r\n        </div>\r\n    </div>\r\n    <div class=\"cus-container pt-xs pb-xl\">\r\n\r\n        <div>\r\n            <div class=\"c-third fs-d\">\r\n                <i class=\"icon-home\"></i>\r\n                首頁 /{{spot.name}}\r\n            </div>\r\n            <div class=\"d-fl fl-wp mt-d fl-jc-sb\">\r\n                <div class=\"cus-detail-info\">\r\n                    <h3 class=\"cus-title--d\">\r\n                        <i class=\"icon-infomation c-primary\"></i>\r\n                        景點介紹</h3>\r\n                    <div class=\"c-third fs-sm pb-xs\">資料更新時間：{{spot.updateTime|date:'yyyy/MM/dd HH:mm:ss'}}</div>\r\n                    <div class=\"cus-title--sm pt-xs mb-xs\">簡介</div>\r\n                    <div class=\"fs-sm\">{{spot.descriptionDetail}}</div>\r\n                    <div *ngFor=\"let item of infoList\" class=\"d-fl pt-xs mt-xs\">\r\n                        <div class=\"fs-xl c-sub mr-xs\">\r\n                           <i [ngClass]=\"item.iconClass\"></i>\r\n                        </div>\r\n                        <div>\r\n                            <div class=\"cus-title--sm mb-xs\">{{item.title}}</div>\r\n                            <div class=\"c-third\">{{spot[item.key]||'未提供'}}</div>\r\n                        </div>\r\n                    </div>\r\n                </div>\r\n                <div class=\"cus-detail-position-container\">\r\n                    <agm-map [latitude]=\"spot.position.lat\" [longitude]=\"spot.position.lon\" [zoom]=\"13\" class=\"cus-detail-position-container-map\">\r\n                        <agm-marker [latitude]=\"spot.position.lat\" [longitude]=\"spot.position.lon\" ></agm-marker>\r\n                      </agm-map>\r\n                </div>\r\n            </div>\r\n            \r\n            <h3 class=\"cus-title--d mt-sm pt-sm\"><i class=\"icon-foods c-primary\"></i>周邊美食</h3>\r\n            <div class=\"mt-xs pt-xs pb-sm d-fl cus-card-container\" empty=\"查無相關景點\" [ngClass]=\"{'cus-card-container--empty':!restaurantList.length}\">\r\n                <div class=\"cus-food-card\" (click)=\"openFoodDialog(food)\" *ngFor=\"let food of restaurantList\">\r\n                    <com-img [imgSrc]=\"food.imgUrl\" [title]=\"food.name\"></com-img>\r\n                    <div class=\"fs-lg\">{{food.name}}</div>\r\n                    <div class=\"mt-xs fs-d\">\r\n                        <i class=\"icon-distance\"></i>\r\n                        &nbsp;\r\n                        距 {{food.position}} 公尺\r\n                    </div>\r\n                </div>\r\n            </div>\r\n        </div>\r\n    </div>\r\n\r\n</div>"
 
 /***/ }),
 
@@ -1005,18 +1388,15 @@ var DetailComponent = /** @class */ (function () {
                 _this.apiService.getSpotDetailById(id).subscribe(function (d) {
                     console.log(id);
                     _this.spot = d;
-                    _this.restaurantList = new Array(4).fill({
-                        id: '1',
-                        name: '田雞小館',
-                        imgUrl: d.imgUrlList[0].url,
-                        position: 100,
-                        address: d.address,
-                        openTime: d.openTime,
-                        description: d.descriptionDetail
+                    _this.apiService.getNearbyRestaurant(d.position.lat, d.position.lon).subscribe(function (restList) {
+                        _this.restaurantList = restList.sort(function (a, b) { return a.position - b.position; });
                     });
                 });
             }
         });
+    };
+    DetailComponent.prototype.goToMap = function () {
+        window.open("https://www.google.com/maps/search/?api=1&query=" + this.spot.position.lat + "," + this.spot.position.lon, "_blank");
     };
     DetailComponent.prototype.openFoodDialog = function (food) {
         var dialogRef = this.dialog.open(_component_restaurant_component__WEBPACK_IMPORTED_MODULE_5__["RestaurantComponent"], {
@@ -1051,7 +1431,7 @@ var DetailComponent = /** @class */ (function () {
 /*! no static exports found */
 /***/ (function(module, exports) {
 
-module.exports = "\n<div class=\"cus-container pb-xl\">\n    <div class=\"pt-sm pb-lg\">\n        <com-filter (doFilter)=\"goFilter($event)\"></com-filter>\n    </div>\n    \n    <h3 class=\"cus-title--d mb-sm\">\n        <i class=\"icon-mountain c-danger\"></i>台灣十大熱門景點</h3>\n    <div class=\"cus-spotCard-container\">\n        <com-spot-card (onClick)=\"viewDetail(item.id)\" class=\"cus-spotCard-container-card\" [spot]=\"item\" *ngFor=\"let item of spotlightList\"></com-spot-card>\n    </div>\n    <h3 class=\"cus-title--d mb-sm mt-lg\">\n        <i class=\"icon-earth c-info\"></i>    探尋新鮮的好去處</h3>\n        <div class=\"cus-recommend-container\">\n           <div class=\"cus-recommend-container-box\"\n           [style.background-image]=\"'url('+item.imgUrl+')'\" *ngFor=\"let item of filterList\">\n           </div>\n        </div>\n</div>"
+module.exports = "\r\n<div class=\"cus-container pb-xl\">\r\n    <div class=\"pt-sm pb-lg\">\r\n        <com-filter (doFilter)=\"goFilter($event)\"></com-filter>\r\n    </div>\r\n    \r\n    <h3 class=\"cus-title--d mb-sm\">\r\n        <i class=\"icon-mountain c-danger\"></i>台灣十大熱門景點</h3>\r\n    <div class=\"cus-spotCard-container\">\r\n        <com-spot-card (onClick)=\"viewDetail(item.id)\" class=\"cus-spotCard-container-card\" [spot]=\"item\" *ngFor=\"let item of spotlightList\"></com-spot-card>\r\n    </div>\r\n    <h3 class=\"cus-title--d mb-sm mt-lg\">\r\n        <i class=\"icon-earth c-info\"></i>    探尋新鮮的好去處</h3>\r\n        <div class=\"cus-recommend-container\">\r\n           <div class=\"cus-recommend-container-box\" [title]=\"item.title\" (click)=\"goFilterByTag(item.filterParam)\" *ngFor=\"let item of filterList\">\r\n           <com-img [imgSrc]=\"item.imgUrl\" [title]=\"item.title\"></com-img>\r\n           </div>\r\n        </div>\r\n</div>"
 
 /***/ }),
 
@@ -1090,16 +1470,21 @@ var HomeComponent = /** @class */ (function () {
             _this.filterList = d;
         });
     };
-    HomeComponent.prototype.callApi = function () {
-        this.apiService.testApi().subscribe(function (d) {
-            console.log(d);
-        });
-    };
     HomeComponent.prototype.viewDetail = function (spotId) {
         window.open("detail/" + spotId, "_blank");
     };
     HomeComponent.prototype.goFilter = function (filterData) {
-        this.router.navigate(['search']);
+        this.router.navigate(['search', tslib__WEBPACK_IMPORTED_MODULE_0__["__assign"]({}, filterData, { page: 1 })]);
+    };
+    HomeComponent.prototype.goFilterByTag = function (group) {
+        var filter = {
+            city: '',
+            group: group,
+            searchText: '',
+            openTime: '',
+            ticket: ''
+        };
+        this.router.navigate(['search', tslib__WEBPACK_IMPORTED_MODULE_0__["__assign"]({}, filter, { page: 1 })]);
     };
     HomeComponent = tslib__WEBPACK_IMPORTED_MODULE_0__["__decorate"]([
         Object(_angular_core__WEBPACK_IMPORTED_MODULE_1__["Component"])({
@@ -1123,7 +1508,7 @@ var HomeComponent = /** @class */ (function () {
 /*! no static exports found */
 /***/ (function(module, exports) {
 
-module.exports = "<div class=\"cus-container pb-xl\">\n    <div class=\"pt-sm pb-lg\">\n        <com-filter></com-filter>\n    </div>\n    <h3 class=\"cus-title--d mb-xs\">搜尋結果</h3>\n    \n    <div class=\"mb-sm c-third\">相關結果共XX筆</div>\n    <div class=\"cus-spotCard-container\">\n        <com-spot-card (onClick)=\"viewDetail(item.id)\" class=\"cus-spotCard-container-card\" [spot]=\"item\"\n            *ngFor=\"let item of resultList\"></com-spot-card>\n    </div>\n    <div class=\"d-fl fl-ai-c fl-jc-c mt-d\">\n        <div class=\"cus-pagination mr-xs\">\n            <i class=\"icon-left-arrow\"></i>\n        </div>\n        <div class=\"cus-pagination mr-xs\" [ngClass]=\"{'cus-pagination--active':num===currentPage}\"\n            *ngFor=\"let num of pageNumList\">\n            {{num+1}}\n        </div>\n        <div class=\"cus-pagination\">\n            <i class=\"icon-right-arrow\"></i>\n        </div>\n    </div>\n</div>"
+module.exports = "<div class=\"cus-container pb-xl\">\r\n    <div class=\"pt-sm pb-lg\">\r\n        <com-filter [filterObj]=\"filterObj\" (doFilter)=\"goFilter($event)\"></com-filter>\r\n    </div>\r\n    <h3 class=\"cus-title--d mb-xs\">搜尋結果</h3>\r\n    \r\n    <div class=\"mb-sm c-third\">相關結果共 {{resultNum}} 筆</div>\r\n    <div class=\"cus-spotCard-container\"  empty=\"查無相關景點\"  [ngClass]=\"{'cus-spotCard-container--empty':!resultList.length}\">\r\n        <com-spot-card (onClick)=\"viewDetail(item.id)\" class=\"cus-spotCard-container-card\" [spot]=\"item\"\r\n            *ngFor=\"let item of resultList\"></com-spot-card>\r\n        \r\n    </div>\r\n    <div class=\"d-fl fl-ai-c fl-jc-c mt-d\" *ngIf=\"pageNumList.length\">\r\n        <div class=\"cus-pagination mr-xs\" (click)=\"goPage(currentPage-1)\">\r\n            <i class=\"icon-left-arrow\"></i>\r\n        </div>\r\n        <div class=\"cus-pagination mr-xs\" (click)=\"goPage(num)\" [ngClass]=\"{'cus-pagination--active':num===currentPage}\"\r\n            *ngFor=\"let num of pageNumList\">\r\n            {{num}}\r\n        </div>\r\n        <div class=\"cus-pagination\" (click)=\"goPage(currentPage+1)\">\r\n            <i class=\"icon-right-arrow\"></i>\r\n        </div>\r\n    </div>\r\n</div>"
 
 /***/ }),
 
@@ -1146,21 +1531,73 @@ __webpack_require__.r(__webpack_exports__);
 
 
 var SearchComponent = /** @class */ (function () {
-    function SearchComponent(apiService, router) {
+    function SearchComponent(apiService, router, activeRoute) {
         this.apiService = apiService;
         this.router = router;
+        this.activeRoute = activeRoute;
+        this.filterObj = {
+            city: '',
+            group: '',
+            searchText: '',
+            openTime: '',
+            ticket: '',
+        };
         this.resultList = [];
-        this.pageNumList = [0, 1, 2, 3, 4];
-        this.currentPage = 0;
+        this.pageNumList = [1, 2, 3, 4, 5];
+        this.currentPage = 1;
+        this.resultNum = 1;
     }
     SearchComponent.prototype.ngOnInit = function () {
         var _this = this;
-        this.apiService.getSpotlight().subscribe(function (d) {
-            _this.resultList = d;
+        this.activeRoute.paramMap.subscribe(function (v) {
+            _this.filterObj = _this.getObjFormParam();
+            _this.getData();
+            _this.setCurrentPage();
         });
     };
     SearchComponent.prototype.viewDetail = function (spotId) {
-        window.open("detail/" + spotId, "_blank");
+        window.open("detail/" + spotId, '_blank');
+    };
+    SearchComponent.prototype.setCurrentPage = function () {
+        var _this = this;
+        this.apiService.getFilterDataNumber(this.getObjFormParam()).subscribe(function (num) {
+            _this.resultNum = num;
+            var page = Math.ceil(num / 12);
+            _this.currentPage = Number(_this.activeRoute.snapshot.paramMap.get('page'));
+            _this.pageNumList = [_this.currentPage - 2, _this.currentPage - 1, _this.currentPage, _this.currentPage + 1, _this.currentPage + 2].filter(function (d) { return d > 0 && d <= page; });
+        });
+    };
+    SearchComponent.prototype.getData = function () {
+        var _this = this;
+        var page = Number(this.activeRoute.snapshot.paramMap.get('page'));
+        this.apiService
+            .getAllDataByFilter(this.getObjFormParam(), page)
+            .subscribe(function (d) {
+            _this.resultList = d;
+        });
+    };
+    SearchComponent.prototype.getObjFormParam = function () {
+        return {
+            city: this.activeRoute.snapshot.paramMap.get('city'),
+            group: this.activeRoute.snapshot.paramMap.get('group'),
+            searchText: this.activeRoute.snapshot.paramMap.get('searchText'),
+            openTime: this.activeRoute.snapshot.paramMap.get('openTime'),
+            ticket: this.activeRoute.snapshot.paramMap.get('ticket'),
+        };
+    };
+    SearchComponent.prototype.goPage = function (pageNum) {
+        if (pageNum !== this.currentPage) {
+            this.router.navigate([
+                'search',
+                tslib__WEBPACK_IMPORTED_MODULE_0__["__assign"]({}, this.getObjFormParam(), { page: pageNum }),
+            ]);
+        }
+    };
+    SearchComponent.prototype.goFilter = function (filterData) {
+        this.router.navigate([
+            'search',
+            tslib__WEBPACK_IMPORTED_MODULE_0__["__assign"]({}, filterData, { page: 1 }),
+        ]);
     };
     SearchComponent = tslib__WEBPACK_IMPORTED_MODULE_0__["__decorate"]([
         Object(_angular_core__WEBPACK_IMPORTED_MODULE_1__["Component"])({
@@ -1168,7 +1605,8 @@ var SearchComponent = /** @class */ (function () {
             template: __webpack_require__(/*! ./search.component.html */ "./src/app/page/search.component.html"),
         }),
         tslib__WEBPACK_IMPORTED_MODULE_0__["__metadata"]("design:paramtypes", [_apiService_service__WEBPACK_IMPORTED_MODULE_3__["ApiService"],
-            _angular_router__WEBPACK_IMPORTED_MODULE_2__["Router"]])
+            _angular_router__WEBPACK_IMPORTED_MODULE_2__["Router"],
+            _angular_router__WEBPACK_IMPORTED_MODULE_2__["ActivatedRoute"]])
     ], SearchComponent);
     return SearchComponent;
 }());
@@ -1241,7 +1679,7 @@ Object(_angular_platform_browser_dynamic__WEBPACK_IMPORTED_MODULE_2__["platformB
 /*! no static exports found */
 /***/ (function(module, exports, __webpack_require__) {
 
-module.exports = __webpack_require__(/*! /Users/name/jenny/playground/f2e2021/f2e2021-taiwanTraveling/src/main.ts */"./src/main.ts");
+module.exports = __webpack_require__(/*! E:\code\niceDayInTaiwan\src\main.ts */"./src/main.ts");
 
 
 /***/ })

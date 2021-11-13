@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="135.364" height="124.19" viewBox="0 0 135.364 124.19">
+  <defs>
+    <linearGradient id="linear-gradient" x1="0.5" x2="0.5" y2="1" gradientUnits="objectBoundingBox">
+      <stop offset="0" stop-color="#e7fde0"/>
+      <stop offset="1" stop-color="#9bde79"/>
+    </linearGradient>
+    <linearGradient id="linear-gradient-2" x1="0.5" x2="0.5" y2="1" gradientUnits="objectBoundingBox">
+      <stop offset="0" stop-color="#9cea96"/>
+      <stop offset="1" stop-color="#90dd69"/>
+    </linearGradient>
+  </defs>
+  <g id="Group_5267" data-name="Group 5267" transform="translate(-552 -465.874)">
+    <path id="Icon_awesome-map" data-name="Icon awesome-map" d="M18.479,16.33-10,69.188a2.63,2.63,0,0,0,3.606,2.443L20.368,61.3,48.847,2.25,23.3,11.065C21.305,11.864,19.711,13.527,18.479,16.33ZM25.628,61.3l31.56,10.52L85.667,12.77,54.107,2.25ZM121.758,2.441,90.927,12.77,62.448,71.822l31.13-9.2c2-.8,4.565-1.923,5.742-4.93L125.364,4.883A2.63,2.63,0,0,0,121.758,2.441Z" transform="translate(562 518.242)" fill="url(#linear-gradient)"/>
+    <ellipse id="Ellipse_234" data-name="Ellipse 234" cx="14.5" cy="3" rx="14.5" ry="3" transform="translate(604 549.874)" fill="#e1edf4"/>
+    <path id="Union_6" data-name="Union 6" d="M38.75,85.307C34.341,78.922,30.632,73.64,27.359,68.98l0-.006C12.523,47.859,9.437,43.466,9.437,32.649a32.639,32.639,0,0,1,1.4-9.476l22.12,22.89L0,11.961,5.223,6.92,70.786,74.769l-5.223,5.04-9.448-9.777C52.96,74.526,49.538,79.4,45.464,85.307a4.086,4.086,0,0,1-6.714,0ZM65.958,55.846,52.278,41.69A13.609,13.609,0,0,0,33.42,22.174L20.165,8.458A32.655,32.655,0,0,1,74.777,32.649a28.05,28.05,0,0,1-1.752,10.661c-1.238,3.248-3.283,6.881-7.064,12.536l0,0Z" transform="translate(576.451 465.874)" fill="url(#linear-gradient-2)"/>
+  </g>
+</svg>
