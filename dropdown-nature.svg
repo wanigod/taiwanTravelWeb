@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="20.117" height="40.326" viewBox="0 0 20.117 40.326">
+  <g id="dropdown-nature" transform="translate(-510.833 -334.684)">
+    <g id="Group_4860" data-name="Group 4860" transform="translate(522.373 334.684)">
+      <rect id="Rectangle_2904" data-name="Rectangle 2904" width="1.331" height="14.752" rx="0.665" transform="translate(3.623 25.574)" fill="#355389"/>
+      <path id="Path_10173" data-name="Path 10173" d="M468.325,1171.792,472.187,1203a.426.426,0,0,1-.423.479H464.04a.426.426,0,0,1-.423-.479l3.862-31.211A.426.426,0,0,1,468.325,1171.792Z" transform="translate(-463.614 -1171.418)" fill="#299a66"/>
+      <path id="Path_10174" data-name="Path 10174" d="M491.24,1428.686l-5.185,4.446a.426.426,0,0,1-.7-.376l.083-.668a.426.426,0,0,1,.146-.271l5.036-4.318a.426.426,0,0,1,.7.271l.067.54A.426.426,0,0,1,491.24,1428.686Z" transform="translate(-484.357 -1409.208)" fill="#81dbb2"/>
+      <path id="Path_10175" data-name="Path 10175" d="M502.342,1319.871l-2.821.964a.426.426,0,0,1-.561-.456l.062-.5a.426.426,0,0,1,.285-.351l2.7-.924a.426.426,0,0,1,.561.351l.057.46A.426.426,0,0,1,502.342,1319.871Z" transform="translate(-496.564 -1308.125)" fill="#81dbb2"/>
+    </g>
+    <g id="Group_4861" data-name="Group 4861" transform="translate(510.833 340.911)">
+      <rect id="Rectangle_2905" data-name="Rectangle 2905" width="0.957" height="16.775" transform="translate(4.426 17.324)" fill="#355389"/>
+      <path id="Path_10176" data-name="Path 10176" d="M606.738,1067.221l4.228,20.695c.036.175-.163.331-.422.331h-8.455c-.259,0-.458-.156-.422-.331l4.228-20.695C605.962,1066.886,606.669,1066.886,606.738,1067.221Z" transform="translate(-601.661 -1066.97)" fill="#299a66"/>
+      <path id="Path_10177" data-name="Path 10177" d="M613.445,1428.9l-8.465-2.668.128-.918,8.2,2.584Z" transform="translate(-604.373 -1409.1)" fill="#81dbb2"/>
+      <path id="Path_10178" data-name="Path 10178" d="M631.565,1290.122l-5.609-1.768.128-.918,5.342,1.684Z" transform="translate(-623.983 -1278.53)" fill="#81dbb2"/>
+    </g>
+  </g>
+</svg>
