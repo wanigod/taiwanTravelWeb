@@ -59,10 +59,10 @@ var ApiService = /** @class */ (function () {
             'C1_315081300H_000114',
             'C1_315081300H_000088',
             'C1_379000000A_000019',
-            'C1_376480000A_000304',
             'C1_379000000A_000023',
             'C1_397000000A_000637',
             'C1_315081600H_000309',
+            'C1_379000000A_000057'
         ];
         var filterParam = filterName.map(function (d) { return "ID eq '" + d + "'"; }).join('or ');
         return this.getApiByUrl("https://ptx.transportdata.tw/MOTC/v2/Tourism/ScenicSpot?$filter=" + filterParam + "&$format=JSON").pipe(Object(rxjs_operators__WEBPACK_IMPORTED_MODULE_3__["map"])(function (res) { return _this.apiDtoToSpotSimple(res); }));
@@ -90,7 +90,7 @@ var ApiService = /** @class */ (function () {
         }
     };
     ApiService.prototype.filterDtoIsComplex = function (filterDto) {
-        return Boolean(filterDto.group ? filterDto.openTime || filterDto.ticket : false);
+        return Boolean(filterDto.group ? filterDto.openTime || filterDto.ticket || filterDto.searchText : false);
     };
     ApiService.prototype.getRealApiByFilter = function (filterDto, page) {
         var _this = this;
@@ -911,6 +911,10 @@ var ImgLoaderComponent = /** @class */ (function () {
         if (this.imgSrc) {
             this.getImg();
         }
+        else {
+            this.failLoader = true;
+            this.isLoading = false;
+        }
     };
     ImgLoaderComponent.prototype.getImg = function () {
         var _this = this;
@@ -1025,7 +1029,7 @@ var RestaurantComponent = /** @class */ (function () {
 /*! no static exports found */
 /***/ (function(module, exports) {
 
-module.exports = "<div class=\"cus-input-container\" (click)=\"showList=!showList\">\r\n    <input class=\"cus-input cus-input--select\"  readonly [value]=\"getCurrentName()\" [placeholder]=\"placeholder\">\r\n    <i class=\"icon-down-arrow\"></i>\r\n    <div *ngIf=\"showList\" class=\"cus-select-list\"> \r\n        <div class=\"cus-select-list-item\" *ngIf=\"hasFilter\"  (click)=\"$event.preventDefault();$event.stopPropagation();\">\r\n            <input class=\"cus-input cus-input--select\" placeholder=\"輸入關鍵字\" [(ngModel)]=\"filterText\">\r\n        </div>\r\n        <ng-container *ngFor=\"let item of valueList\">\r\n            <div *ngIf=\"filterText?item.name.includes(filterText):true\"\r\n            [ngClass]=\"{'cus-select-list-item--active':value===item.key}\"\r\n             class=\"cus-select-list-item\"\r\n              (click)=\"selectItem(item);$event.stopPropagation();\">\r\n              <div class=\"cus-select-list-item-icon\" *ngIf=\"item.icon\" [ngClass]=\"item.icon\"></div>\r\n              {{item.name}}\r\n            </div>\r\n        </ng-container>\r\n        \r\n    </div>\r\n</div>\r\n\r\n    \r\n"
+module.exports = "<div class=\"cus-input-container\" (click)=\"showList=!showList\">\r\n    <label >\r\n        <input class=\"cus-input cus-input--select\" readonly [value]=\"getCurrentName()\" [placeholder]=\"placeholder\">\r\n        <i class=\"icon-down-arrow\" (click)=\"$event.stopPropagation();\"></i>\r\n    </label>\r\n    <div *ngIf=\"showList\" class=\"cus-select-list\">\r\n        <div class=\"cus-select-list-item\" *ngIf=\"hasFilter\" (click)=\"$event.preventDefault();$event.stopPropagation();\">\r\n            <input class=\"cus-input cus-input--select\" placeholder=\"輸入關鍵字\" [(ngModel)]=\"filterText\">\r\n        </div>\r\n        <ng-container *ngFor=\"let item of valueList\">\r\n            <div *ngIf=\"filterText?item.name.includes(filterText):true\"\r\n                [ngClass]=\"{'cus-select-list-item--active':value===item.key}\" class=\"cus-select-list-item\"\r\n                (click)=\"selectItem(item);$event.stopPropagation();\">\r\n                <div class=\"cus-select-list-item-icon\" *ngIf=\"item.icon\" [ngClass]=\"item.icon\"></div>\r\n                {{item.name}}\r\n            </div>\r\n        </ng-container>\r\n\r\n    </div>\r\n</div>"
 
 /***/ }),
 
@@ -1289,7 +1293,7 @@ var HeaderComponent = /** @class */ (function () {
 /*! no static exports found */
 /***/ (function(module, exports) {
 
-module.exports = "<div class=\"cus-detail\">\r\n    <div class=\"cus-detail-keyVersion\">\r\n        <com-img [imgSrc]=\"spot?.imgUrlList[0]?.url\"></com-img>\r\n        <div class=\"cus-container cus-detail-keyVersion-info\">\r\n            <h1 class=\"cus-detail-keyVersion-info-title mb-xs\">{{spot.name}}</h1>\r\n            <div class=\"cus-detail-keyVersion-info-address\">\r\n                <i class=\"icon-address c-info\"></i>\r\n                {{spot.address}}\r\n                <span class=\"c-info\" (click)=\"goToMap()\">&nbsp;前往地圖</span>\r\n            </div>\r\n        </div>\r\n    </div>\r\n    <div class=\"cus-container pt-xs pb-xl\">\r\n\r\n        <div>\r\n            <div class=\"c-third fs-d\">\r\n                <i class=\"icon-home\"></i>\r\n                首頁 /{{spot.name}}\r\n            </div>\r\n            <div class=\"d-fl fl-wp mt-d fl-jc-sb\">\r\n                <div class=\"cus-detail-info\">\r\n                    <h3 class=\"cus-title--d\">\r\n                        <i class=\"icon-infomation c-primary\"></i>\r\n                        景點介紹</h3>\r\n                    <div class=\"c-third fs-sm pb-xs\">資料更新時間：{{spot.updateTime|date:'yyyy/MM/dd HH:mm:ss'}}</div>\r\n                    <div class=\"cus-title--sm pt-xs mb-xs\">簡介</div>\r\n                    <div class=\"fs-sm\">{{spot.descriptionDetail}}</div>\r\n                    <div *ngFor=\"let item of infoList\" class=\"d-fl pt-xs mt-xs\">\r\n                        <div class=\"fs-xl c-sub mr-xs\">\r\n                           <i [ngClass]=\"item.iconClass\"></i>\r\n                        </div>\r\n                        <div>\r\n                            <div class=\"cus-title--sm mb-xs\">{{item.title}}</div>\r\n                            <div class=\"c-third\">{{spot[item.key]||'未提供'}}</div>\r\n                        </div>\r\n                    </div>\r\n                </div>\r\n                <div class=\"cus-detail-position-container\">\r\n                    <agm-map [latitude]=\"spot.position.lat\" [longitude]=\"spot.position.lon\" [zoom]=\"13\" class=\"cus-detail-position-container-map\">\r\n                        <agm-marker [latitude]=\"spot.position.lat\" [longitude]=\"spot.position.lon\" ></agm-marker>\r\n                      </agm-map>\r\n                </div>\r\n            </div>\r\n            \r\n            <h3 class=\"cus-title--d mt-sm pt-sm\"><i class=\"icon-foods c-primary\"></i>周邊美食</h3>\r\n            <div class=\"mt-xs pt-xs pb-sm d-fl cus-card-container\" empty=\"查無相關景點\" [ngClass]=\"{'cus-card-container--empty':!restaurantList.length}\">\r\n                <div class=\"cus-food-card\" (click)=\"openFoodDialog(food)\" *ngFor=\"let food of restaurantList\">\r\n                    <com-img [imgSrc]=\"food.imgUrl\" [title]=\"food.name\"></com-img>\r\n                    <div class=\"fs-lg\">{{food.name}}</div>\r\n                    <div class=\"mt-xs fs-d\">\r\n                        <i class=\"icon-distance\"></i>\r\n                        &nbsp;\r\n                        距 {{food.position}} 公尺\r\n                    </div>\r\n                </div>\r\n            </div>\r\n        </div>\r\n    </div>\r\n\r\n</div>"
+module.exports = "<div class=\"cus-detail\">\r\n    <div class=\"cus-detail-keyVersion\">\r\n        <com-img [imgSrc]=\"spot?.imgUrlList[0]?.url\"></com-img>\r\n        <div class=\"cus-container cus-detail-keyVersion-info\">\r\n            <h1 class=\"cus-detail-keyVersion-info-title mb-xs\">{{spot.name}}</h1>\r\n            <div class=\"cus-detail-keyVersion-info-address\">\r\n                <i class=\"icon-address c-info\"></i>\r\n                {{spot.address}}\r\n                <span class=\"c-info\" (click)=\"goToMap()\">&nbsp;前往地圖</span>\r\n            </div>\r\n        </div>\r\n    </div>\r\n    <div class=\"cus-container pt-xs pb-xl\">\r\n\r\n        <div>\r\n            <div class=\"c-third fs-d\">\r\n                <i class=\"icon-home\"></i>\r\n                首頁&nbsp;/&nbsp;{{spot.name}}\r\n            </div>\r\n            <div class=\"d-fl fl-wp mt-d fl-jc-sb\">\r\n                <div class=\"cus-detail-info\">\r\n                    <h3 class=\"cus-title--d\">\r\n                        <i class=\"icon-infomation c-primary\"></i>\r\n                        景點介紹</h3>\r\n                    <div class=\"c-third fs-sm pb-xs\">資料更新時間：{{spot.updateTime|date:'yyyy/MM/dd HH:mm:ss'}}</div>\r\n                    <div class=\"cus-title--sm pt-xs mb-xs\">簡介</div>\r\n                    <div class=\"fs-sm\">{{spot.descriptionDetail}}</div>\r\n                    <div *ngFor=\"let item of infoList\" class=\"d-fl pt-xs mt-xs\">\r\n                        <div class=\"fs-xl c-sub mr-xs\">\r\n                           <i [ngClass]=\"item.iconClass\"></i>\r\n                        </div>\r\n                        <div>\r\n                            <div class=\"cus-title--sm mb-xs\">{{item.title}}</div>\r\n                            <div class=\"c-third\">{{spot[item.key]||'未提供'}}</div>\r\n                        </div>\r\n                    </div>\r\n                </div>\r\n                <div class=\"cus-detail-position-container\">\r\n                    <agm-map [latitude]=\"spot.position.lat\" [longitude]=\"spot.position.lon\" [zoom]=\"13\" class=\"cus-detail-position-container-map\">\r\n                        <agm-marker [latitude]=\"spot.position.lat\" [longitude]=\"spot.position.lon\" ></agm-marker>\r\n                      </agm-map>\r\n                </div>\r\n            </div>\r\n            \r\n            <h3 class=\"cus-title--d mt-sm pt-sm\"><i class=\"icon-foods c-primary\"></i>周邊美食</h3>\r\n            <div class=\"mt-xs pt-xs pb-sm d-fl cus-card-container\" empty=\"查無相關餐廳\" [ngClass]=\"{'cus-spotCard-container--empty':!restaurantList.length}\">\r\n                <div class=\"cus-food-card\" (click)=\"openFoodDialog(food)\" *ngFor=\"let food of restaurantList\">\r\n                    <com-img [imgSrc]=\"food.imgUrl\" [title]=\"food.name\"></com-img>\r\n                    <div class=\"fs-lg\">{{food.name}}</div>\r\n                    <div class=\"mt-xs fs-d\">\r\n                        <i class=\"icon-distance\"></i>\r\n                        &nbsp;\r\n                        距 {{food.position}} 公尺\r\n                    </div>\r\n                </div>\r\n            </div>\r\n        </div>\r\n    </div>\r\n\r\n</div>"
 
 /***/ }),
 
@@ -1508,7 +1512,7 @@ var HomeComponent = /** @class */ (function () {
 /*! no static exports found */
 /***/ (function(module, exports) {
 
-module.exports = "<div class=\"cus-container pb-xl\">\r\n    <div class=\"pt-sm pb-lg\">\r\n        <com-filter [filterObj]=\"filterObj\" (doFilter)=\"goFilter($event)\"></com-filter>\r\n    </div>\r\n    <h3 class=\"cus-title--d mb-xs\">搜尋結果</h3>\r\n    \r\n    <div class=\"mb-sm c-third\">相關結果共 {{resultNum}} 筆</div>\r\n    <div class=\"cus-spotCard-container\"  empty=\"查無相關景點\"  [ngClass]=\"{'cus-spotCard-container--empty':!resultList.length}\">\r\n        <com-spot-card (onClick)=\"viewDetail(item.id)\" class=\"cus-spotCard-container-card\" [spot]=\"item\"\r\n            *ngFor=\"let item of resultList\"></com-spot-card>\r\n        \r\n    </div>\r\n    <div class=\"d-fl fl-ai-c fl-jc-c mt-d\" *ngIf=\"pageNumList.length\">\r\n        <div class=\"cus-pagination mr-xs\" (click)=\"goPage(currentPage-1)\">\r\n            <i class=\"icon-left-arrow\"></i>\r\n        </div>\r\n        <div class=\"cus-pagination mr-xs\" (click)=\"goPage(num)\" [ngClass]=\"{'cus-pagination--active':num===currentPage}\"\r\n            *ngFor=\"let num of pageNumList\">\r\n            {{num}}\r\n        </div>\r\n        <div class=\"cus-pagination\" (click)=\"goPage(currentPage+1)\">\r\n            <i class=\"icon-right-arrow\"></i>\r\n        </div>\r\n    </div>\r\n</div>"
+module.exports = "<div class=\"cus-container pb-xl\">\r\n    <div class=\"pt-sm pb-lg\">\r\n        <com-filter [filterObj]=\"filterObj\" (doFilter)=\"goFilter($event)\"></com-filter>\r\n    </div>\r\n    <h3 class=\"cus-title--d mb-xs\">搜尋結果</h3>\r\n    \r\n    <div class=\"mb-sm c-third\">相關結果共 {{resultNum}} 筆</div>\r\n    <div class=\"cus-spotCard-container\"  empty=\"查無相關景點\"  [ngClass]=\"{'cus-spotCard-container--empty':!resultList.length}\">\r\n        <com-spot-card (onClick)=\"viewDetail(item.id)\" class=\"cus-spotCard-container-card\" [spot]=\"item\"\r\n            *ngFor=\"let item of resultList\"></com-spot-card>\r\n        \r\n    </div>\r\n    <div class=\"d-fl fl-ai-c fl-jc-c mt-d\" *ngIf=\"pageNumList.length\">\r\n        <div class=\"cus-pagination mr-xs\" (click)=\"goPage(currentPage-1)\" [ngClass]=\"{'cus-pagination--disabled':!validPageNum(currentPage-1)}\">\r\n            <i class=\"icon-left-arrow\"></i>\r\n        </div>\r\n        <div class=\"cus-pagination mr-xs\" (click)=\"goPage(num)\"  [ngClass]=\"{'cus-pagination--disabled':!validPageNum(num),'cus-pagination--active':num===currentPage}\"\r\n            *ngFor=\"let num of pageNumList\">\r\n            {{num}}\r\n        </div>\r\n        <div class=\"cus-pagination\" (click)=\"goPage(currentPage+1)\"  [ngClass]=\"{'cus-pagination--disabled':!validPageNum(currentPage+1)}\">\r\n            <i class=\"icon-right-arrow\"></i>\r\n        </div>\r\n    </div>\r\n</div>"
 
 /***/ }),
 
@@ -1585,8 +1589,13 @@ var SearchComponent = /** @class */ (function () {
             ticket: this.activeRoute.snapshot.paramMap.get('ticket'),
         };
     };
+    SearchComponent.prototype.validPageNum = function (pageNum) {
+        var maxPage = Math.ceil(this.resultNum / 12);
+        var check = pageNum > 0 && pageNum <= maxPage;
+        return check;
+    };
     SearchComponent.prototype.goPage = function (pageNum) {
-        if (pageNum !== this.currentPage) {
+        if (pageNum !== this.currentPage && this.validPageNum(pageNum)) {
             this.router.navigate([
                 'search',
                 tslib__WEBPACK_IMPORTED_MODULE_0__["__assign"]({}, this.getObjFormParam(), { page: pageNum }),
